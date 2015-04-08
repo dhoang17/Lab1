@@ -13,8 +13,6 @@
 /* FIXME: Define the type 'struct command_stream' here.  This should
    complete the incomplete type declaration in command.h.  */
 
-
-
 ///////////BEGIN STACK DEFINITION////////////////
 
 #define STACK_SIZE 100
@@ -248,9 +246,6 @@ void handle_stack(operator_stack_t *stacko, command_stack_t *stackc)
 
 }
 
-
-
-
 typedef enum parser_component *parser_component_t;
 
 enum parser_component
@@ -261,9 +256,12 @@ enum parser_component
   PIPE,
   POUND,
   NEWLINE,
-  INPUT, //>
-  OUTPUT, //<
-  ERROR
+  INPUT, // <
+  OUTPUT, //>
+  ERROR,
+    LPAREN,
+    RPAREN,
+  SPACE,
 };
 
 
@@ -283,17 +281,18 @@ struct command_stream
   command_node_t *tail;
   command_node_t *cursor;
 };
-  
+
+
 command_stream_t
 make_command_stream (int (*get_next_byte) (void *),
     	     void *get_next_byte_argument)
 {
-  //Make the buffer
-  char *a = malloc(sizeof(char) * 1000);
-  int size = 0;
-  char c;
+    //Make the buffer
+    char *a = malloc(sizeof(char) * 1000);
+    int size = 0;
+    char c;
 
-//take in all the input
+    //take in all the input
     do
       {
 	c = get_next_byte(get_next_byte_argument);
@@ -301,10 +300,12 @@ make_command_stream (int (*get_next_byte) (void *),
 	size++;
       }
     while (c != EOF);
-//enumerate the buffer
+
+    //enumerate the buffer
     int index = 0;
     parser_component_t *enumerated_array = malloc(sizeof(parser_component_t)*size);
     int i = 0;
+    
     //convert buffer into enumerated buffer
     while (i < size) 
       {
@@ -387,17 +388,264 @@ make_command_stream (int (*get_next_byte) (void *),
 	    index++;
 	    i++;
 	    }
-	    else if(isalnum(a[i])==0)
+        else if(strcmp(a[i], '(') == 0)
+        {
+            enumerated_array[index] = INPUT;
+            index++;
+            i++;
+        }
+        else if(strcmp(a[i], ')') == 0)
+        {
+            enumerated_array[index] = OUTPUT;
+            index++;
+            i++;
+        }
+          
+	    else if(isalnum(a[i])==0 || (strcmp(a[i], '!') == 0) || (strcmp(a[i], '%') == 0) || (strcmp(a[i], '+') == 0) || (strcmp(a[i], ',') == 0) || (strcmp(a[i], '-') == 0) || (strcmp(a[i], '.') == 0) || (strcmp(a[i], '/') == 0) || (strcmp(a[i], ':') == 0) || (strcmp(a[i], '@') == 0) || (strcmp(a[i], '^') == 0) || (strcmp(a[i], '_') == 0))
 	    {
-	      while (!isalnum(a[i]))
-		{
-		  i++;
-		}
+            while (!(  isalnum(a[i])==0 || (strcmp(a[i], '!') == 0) || (strcmp(a[i], '%') == 0) || (strcmp(a[i], '+') == 0) || (strcmp(a[i], ',') == 0) || (strcmp(a[i], '-') == 0) || (strcmp(a[i], '.') == 0) || (strcmp(a[i], '/') == 0) || (strcmp(a[i], ':') == 0) || (strcmp(a[i], '@') == 0) || (strcmp(a[i], '^') == 0) || (strcmp(a[i], '_') == 0)))
+            {
+                i++;
+            }
+            
 		enumerated_array[index] = WORD;
 		index++;
-	    }	      
+	    }
+        else if (strcmp(a[i],' ') ==0)
+        {
+            //converts any sequence of spaces into one space enumeration
+            while (strcmp(a[i],' ')==0)
+            {
+                i++;
+            }
+            enumerated_array[index] = SPACE;
+            index++;
+        }
 	  }
       }
+    
+    
+//Implement Error Checks for Enumerated Buffer
+    int line_count = 1;
+    int i = 0;
+    
+    while (i < index)
+    {
+        if ( enumerated_array[i] == ERROR )
+        {
+            msg = fprintf(stderr, "%d : Invalid command", line_count);
+        }
+        
+        //First enumeration cannot be any of the following
+        if (i == 0)
+        {
+            if ( enumerated_array[i] == RPAREN )
+            {
+                msg = fprintf(stderr, "%d : Command cannot begin with )", line_count);
+                exit(1);
+            }
+            
+            if ( enumerated_array[i] == SEMICOLON )
+            {
+                msg = fprintf(stderr, "%d : Command cannot begin with ;", line_count);
+                exit(1);
+            }
+            
+            if ( enumerated_array[i] == ANDOR )
+            {
+                msg = fprintf(stderr, "%d : Command cannot begin with && or || ", line_count);
+                exit(1);
+            }
+            
+            if ( enumerated_array[i] == PIPE )
+            {
+                msg = fprintf(stderr, "%d : Command cannot begin with |", line_count);
+                exit(1);
+            }
+            
+            if ( enumerated_array[i] == INPUT )
+            {
+                msg = fprintf(stderr, "%d : Command cannot begin with <", line_count);
+                exit(1);
+            }
+        }
+        
+        // Checks for Encountering ;
+            /*  1. cannot be surrounded by &&, ||, |
+                2. cannot have (, \n to the left of it
+                    --note that if there are spaces need to keep checking for next command on either side
+             */
+        
+        parser_component_t left = ERROR;
+        parser_component_t right = ERROR;
+        
+        if ( enumerated_array[i] == SEMICOLON)
+        {
+            //Get command to left of ;
+            int j = i;
+            while (j >= 0)
+            {
+                if (enumerated_array[j] != SPACE)
+                {
+                    left = enumerated_array[j];
+                    break;
+                }
+                j--;
+            }
+            
+            j = i;
+            
+            //Get command to right of ;
+            while (j < size)
+            {
+                if (enumerated_array[j] != SPACE   )
+                {
+                    right = enumerated_array[j];
+                    break;
+                }
+                j++;
+            }
+            
+            //1
+            if ( left == LPAREN || left == ANDOR || left == PIPE || left == NEWLINE || left == ERROR)
+            {
+                msg = fprintf(stderr, "%d : Syntax error near ;", line_count);
+                exit(1);
+            }
+            //2
+            if ( right ==  ANDOR || right == PIPE || right == ERROR)
+            {
+                msg = fprintf(stderr, "%d : Syntax error near ;", line_count);
+                exit(1);
+            }
+            
+            
+        }
+        
+        
+        left = ERROR;
+        right = ERROR;
+        // Checks for Encountering && or ||
+            /* 1. MUST be surrounded by words
+                --Right side can have new lines until word, but left side cannot
+                --the exception is that left side can have ) and right side can have (
+             */
+        if ( enumerated_array[i] == ANDOR)
+        {
+            //Get command to left of ;
+            int j = i;
+            while (j >= 0)
+            {
+                if (enumerated_array[j] != SPACE)
+                {
+                    left = enumerated_array[j];
+                    break;
+                }
+                j--;
+            }
+            
+            j = i;
+            
+            //Get command to right of ;
+            while (j < size)
+            {
+                if (enumerated_array[j] != SPACE  && enumerated_array[j] != NEWLINE  )
+                {
+                    right = enumerated_array[j];
+                    break;
+                }
+                j++;
+            }
+            
+            //1
+            if ( left != WORD || RIGHT != WORD || left != RPAREN || right != LPAREN )
+            {
+                msg = fprintf(stderr, "%d : Syntax error near sequential command.", line_count);
+                exit(1);
+            }
+        }
+        
+        
+        left = ERROR;
+        right = ERROR;
+        // Checks for Encountering |
+        /*  1. left MUST be word or ), right MUST be word or (
+                --can check past newlines/spaces
+         
+         */
+        
+        
+        if ( enumerated_array[i] == PIPE)
+        {
+            //Get command to left of ;
+            int j = i;
+            while (j >= 0)
+            {
+                if (enumerated_array[j] != SPACE && enumerated_array[j] != NEWLINE )
+                {
+                    left = enumerated_array[j];
+                    break;
+                }
+                j--;
+            }
+            
+            j = i;
+            
+            //Get command to right of ;
+            while (j < size)
+            {
+                if (enumerated_array[j] != SPACE  && enumerated_array[j] != NEWLINE  )
+                {
+                    right = enumerated_array[j];
+                    break;
+                }
+                j++;
+            }
+            
+            //1
+            if ( left != WORD || RIGHT != WORD || left != RPAREN || right != LPAREN)
+            {
+                msg = fprintf(stderr, "%d : Syntax error near pipe command.", line_count);
+                exit(1);
+            }
+        }
+        
+        // Checks for Encountering #
+        /*
+            1. can NOT have ordinary token immediately left of it ?? what is an ordinary token
+            2. right can be anything...is any comment until new line character
+         */
+        
+        /*
+        left = ERROR;
+        right = ERROR;
+        if (enumerated_array[i] == POUND)
+        {
+            if (i-1 >= 0)
+            {
+                left = enumerated_array[i-1];
+            }
+            
+            if (left == ANDOR || left == SEMICOLON || left == )
+            
+            
+        }
+        */
+        
+        
+        // Checks for Encountering \n
+        // Checks for Encountering Input <
+        // Checks for Encountering Output >
+        // Checks for Encountering (
+        // Checks for Encountering )
+        // Checks for Encountering Space
+        // Checks for Encountering Word
+        
+        
+        
+        //INCREMENT COUNTER
+         i++
+    }
 	    
 /*
 //create command trees
