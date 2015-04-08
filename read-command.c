@@ -132,6 +132,123 @@ int com_empty(command_stack_t* stack)
 //////////END STACK DEFINITION////////////
 //Reference: groups.csail.mit.edu/graphics/classes/6.837/F04/cpp_notes/stack1.html
 
+int get_precendence(char* op)
+{
+	//|, ||/&&, ;/\n
+
+	if(strcmp(op, '|') == 0)
+	{
+		return 3; 
+	}
+
+	if(strcmp(op, '&&') == 0 && strcmp(op,'||') == 0)
+	{
+		return 2; 
+	}
+
+	if(strcmp(op, ';') == 0)
+	{
+		return 1; 
+	}
+
+	else
+	{
+		return 0; 
+	}
+
+}
+
+command_t create_command(enum command_type type, command_t* child_1, command_t* child_2, char** word, command_t* subshell)
+{
+	command_t return_val; 
+	return_val->type = type; 
+	return_val->u.command[0] = child_1; 
+	return_val->u.command[1] = child_2; 
+	return_val->u.word = word;
+	return_val->u.subshell_command; 
+	return return_val;  
+}
+
+
+
+void handle_stack(operator_stack_t *stacko, command_stack_t *stackc)
+{
+	if(op_empty(stacko))
+	{
+		return; 
+	}
+
+	if(stacko->top == 1)
+	{
+		return; 
+	}
+
+	char* cur_op;
+	char* next_op;  
+	command_t* cur_com; 
+
+	cur_op = op_pop(stacko); 
+
+	if(strcmp(cur_op, "(") == 0)
+	{
+		op_push(stacko, cur_op); 
+		return; 
+	}
+
+	next_op = op_pop(stacko); 
+
+	if(get_precendence(next_op) < get_precendence(cur_op))
+	{
+		op_push(stacko, next_op); 
+		op_push(stacko, cur_op); 
+		return; 
+	}
+
+	if(strcmp(next_op, '(') == 0 && strcmp(cur_op, ')') == 0)
+	{
+		command_t* new_com = create_command(SUBSHELL_COMMAND, NULL, NULL, NULL, com_pop(stackc));
+	}
+
+	command_t* com_1; 
+	command_t* com_2; 
+	command_t* new_com; 
+	while(get_precendence(next_op) >= get_precendence(cur_op))
+	{
+		com_1 = com_pop(stackc); 
+		com_2 = com_pop(stackc); 
+
+		if(strcmp(next_op, '|') == 0)
+		{
+			new_com = create_command(PIPE_COMMAND, com_1, com_2, NULL, NULL);
+			com_push(stackc, &new_com); 			
+		}
+		if(strcmp(next_op, '&&') == 0)
+		{
+			new_com = create_command(AND_COMMAND, com_1, com_2, NULL, NULL);
+			com_push(stackc, &new_com);  
+		}
+		if(strcmp(next_op, '||') == 0)
+		{
+			new_com = create_command(OR_COMMAND, com_1, com_2, NULL, NULL);
+			com_push(stackc, &new_com); 
+		}
+		if(strcmp(next_op, ';') == 0)
+		{
+			new_com = create_command(SEQUENCE_COMMAND, com_1, com_2, NULL, NULL); 
+			com_push(stackc, &new_com); 
+		}
+		
+
+		next_op = op_pop(stacko); 
+
+	}
+
+	op_push(stacko, next_op);
+	op_push(stacko, cur_op); 
+
+}
+
+
 
 
 typedef enum parser_component *parser_component_t;
@@ -176,6 +293,7 @@ make_command_stream (int (*get_next_byte) (void *),
   int size = 0;
   char c;
 
+//take in all the input
     do
       {
 	c = get_next_byte(get_next_byte_argument);
@@ -183,8 +301,7 @@ make_command_stream (int (*get_next_byte) (void *),
 	size++;
       }
     while (c != EOF);
-
-  //Construct the command nodes
+//enumerate the buffer
     int index = 0;
     parser_component_t *enumerated_array = malloc(sizeof(parser_component_t)*size);
     int i = 0;
@@ -282,6 +399,37 @@ make_command_stream (int (*get_next_byte) (void *),
 	  }
       }
 	    
+/*
+//create command trees
+operator_stack_t op_stack; 
+op_init(&op_stack); 
+
+command_stack_t com_stack; 
+com_stack(&com_stack);
+
+      int i = 0;
+      int j = 0; 
+      while(1)
+      {
+      	if(isalnum(a[i]))
+      	{
+      		j = i; 
+      		
+      		while(isalnum(a[j]))
+      		{
+      			j++; 
+      		}
+
+      		while(i != j)
+      		{
+
+      		}
+      	}
+      }
+*/
+
+
+
 	      
   /* FIXME: Replace this with your implementation.  You may need to
      add auxiliary functions and otherwise modify the source code.
