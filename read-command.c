@@ -431,45 +431,51 @@ make_command_stream (int (*get_next_byte) (void *),
     
     while (i < index)
     {
-        if ( enumerated_array[i] == ERROR )
-        {
-            msg = fprintf(stderr, "%d : Invalid command", line_count);
-        }
+        int line_count = 1;
+        i = 0;
         
-        //First enumeration cannot be any of the following
-        if (i == 0)
+        while (i < index)
         {
-            if ( enumerated_array[i] == RPAREN )
+            if ( enumerated_array[i] == ERROR )
             {
-                msg = fprintf(stderr, "%d : Command cannot begin with )", line_count);
-                exit(1);
+                fprintf(stderr, "%d : Invalid command", line_count);
             }
             
-            if ( enumerated_array[i] == SEMICOLON )
+            //First enumeration cannot be any of the following
+            if (i == 0)
             {
-                msg = fprintf(stderr, "%d : Command cannot begin with ;", line_count);
-                exit(1);
-            }
-            
-            if ( enumerated_array[i] == ANDOR )
-            {
-                msg = fprintf(stderr, "%d : Command cannot begin with && or || ", line_count);
-                exit(1);
-            }
-            
-            if ( enumerated_array[i] == PIPE )
-            {
-                msg = fprintf(stderr, "%d : Command cannot begin with |", line_count);
-                exit(1);
-            }
-            
-            if ( enumerated_array[i] == INPUT )
-            {
-                msg = fprintf(stderr, "%d : Command cannot begin with <", line_count);
-                exit(1);
-            }
+                if ( enumerated_array[i] == RPAREN )
+                {
+                    fprintf(stderr, "%d : Command cannot begin with )", line_count);
+                    exit(1);
+                }
+                
+                if ( enumerated_array[i] == SEMICOLON )
+                {
+                    fprintf(stderr, "%d : Command cannot begin with ;", line_count);
+                    exit(1);
+                }
+                
+                if ( enumerated_array[i] == ANDOR )
+                {
+                    fprintf(stderr, "%d : Command cannot begin with && or || ", line_count);
+                    exit(1);
+                }
+                
+                if ( enumerated_array[i] == PIPE )
+                {
+                    fprintf(stderr, "%d : Command cannot begin with |", line_count);
+                    exit(1);
+                }
+
+                
+                if ( enumerated_array[i] == INPUT )
+                {
+                    fprintf(stderr, "%d : Command cannot begin with <", line_count);
+                    exit(1);
+                }
         }
-        
+
         // Checks for Encountering ;
             /*  1. cannot be surrounded by &&, ||, |
                 2. cannot have (, \n to the left of it
@@ -509,13 +515,13 @@ make_command_stream (int (*get_next_byte) (void *),
             //1
             if ( left == LPAREN || left == ANDOR || left == PIPE || left == NEWLINE || left == ERROR)
             {
-                msg = fprintf(stderr, "%d : Syntax error near ;", line_count);
+                  fprintf(stderr, "%d : Syntax error near ;", line_count);
                 exit(1);
             }
             //2
             if ( right ==  ANDOR || right == PIPE || right == ERROR)
             {
-                msg = fprintf(stderr, "%d : Syntax error near ;", line_count);
+                  fprintf(stderr, "%d : Syntax error near ;", line_count);
                 exit(1);
             }
             
@@ -558,9 +564,9 @@ make_command_stream (int (*get_next_byte) (void *),
             }
             
             //1
-            if ( left != WORD || RIGHT != WORD || left != RPAREN || right != LPAREN )
+            if ( left != WORD || right != WORD || left != RPAREN || right != LPAREN )
             {
-                msg = fprintf(stderr, "%d : Syntax error near sequential command.", line_count);
+                  fprintf(stderr, "%d : Syntax error near sequential command.", line_count);
                 exit(1);
             }
         }
@@ -603,9 +609,9 @@ make_command_stream (int (*get_next_byte) (void *),
             }
             
             //1
-            if ( left != WORD || RIGHT != WORD || left != RPAREN || right != LPAREN)
+            if ( left != WORD || right != WORD || left != RPAREN || right != LPAREN)
             {
-                msg = fprintf(stderr, "%d : Syntax error near pipe command.", line_count);
+                  fprintf(stderr, "%d : Syntax error near pipe command.", line_count);
                 exit(1);
             }
         }
