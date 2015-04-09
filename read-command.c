@@ -1,3 +1,16 @@
+/*
+ TODO
+ 
+ deal with comments
+ 
+ 
+ */
+
+
+
+
+
+
 // UCLA CS 111 Lab 1 command reading
 
 #include "command.h"
@@ -411,10 +424,10 @@ make_command_stream (int (*get_next_byte) (void *),
 		enumerated_array[index] = WORD;
 		index++;
 	    }
-        else if (strcmp(a[i],' ') ==0)
+        else if (strcmp(a[i],' ') ==0 || strcmp(a[i], '\t')==0 )
         {
             //converts any sequence of spaces into one space enumeration
-            while (strcmp(a[i],' ')==0)
+            while (strcmp(a[i],' ')==0 || strcmp(a[i], '\t')==0 )
             {
                 i++;
             }
@@ -474,8 +487,21 @@ make_command_stream (int (*get_next_byte) (void *),
                     fprintf(stderr, "%d : Command cannot begin with <", line_count);
                     exit(1);
                 }
-        }
-
+            }
+            
+            //Last enumeration cannot be any of the following
+            if (i == index - 1)
+            {
+                
+                if (enumerated_array[i] == )
+                
+            }
+            
+            
+            
+            
+            
+            
         // Checks for Encountering ;
             /*  1. cannot be surrounded by &&, ||, |
                 2. cannot have (, \n to the left of it
@@ -640,13 +666,82 @@ make_command_stream (int (*get_next_byte) (void *),
         
         
         // Checks for Encountering \n
+        /*
+         None. A newline character can be anywhere
+         Increments the line counter
+         */
+            
+        if ( enumerated_array[i] == NEWLINE)
+        {
+            line_count++;
+        }
+            
+            left = ERROR;
+            right = ERROR;
         // Checks for Encountering Input <
+        /*
+         1. cannot be surrounded by newlines, &&, ||, |, ;, <, > and can check for these past spaces
+         2. can have ) to the left of it or ( to the right of it
+        */
         // Checks for Encountering Output >
+        /*
+            1. cannot be surrounded by newlines, &&, ||, |, ;, <, > and can check for these past spaces
+            2. can have ) to the left of it or ( to the right of it
+         */
+            
+            if ( enumerated_array[i] == OUTPUT || enumerated_array[i] == INPUT)
+            {
+                //Get command to left of ;
+                int j = i;
+                while (j >= 0)
+                {
+                    if (enumerated_array[j] != SPACE)
+                    {
+                        left = enumerated_array[j];
+                        break;
+                    }
+                    j--;
+                }
+                
+                j = i;
+                
+                //Get command to right of ;
+                while (j < size)
+                {
+                    if (enumerated_array[j] != SPACE )
+                    {
+                        right = enumerated_array[j];
+                        break;
+                    }
+                    j++;
+                }
+                
+                //1
+                if ( left == NEWLINE || left == ANDOR || left == PIPE || left == SEMICOLON || left == INPUT || left == OUTPUT || left != RPAREN || left == ERROR ||
+                    right == NEWLINE || right == ANDOR || right == PIPE || right == SEMICOLON || right == INPUT || right == OUTPUT || right != LPAREN || right == ERROR)
+                {
+                    fprintf(stderr, "%d : Syntax error I/O command.", line_count);
+                    exit(1);
+                }
+            
+            
         // Checks for Encountering (
+        /*
+         */
+            
+            
         // Checks for Encountering )
+        /*
+         */
+            
+            
         // Checks for Encountering Space
+        /*
+         */
+            
         // Checks for Encountering Word
-        
+        /*
+         */
         
         
         //INCREMENT COUNTER
