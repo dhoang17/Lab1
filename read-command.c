@@ -147,17 +147,17 @@ int get_precendence(char* op)
 {
 	//|, ||/&&, ;/\n
 
-	if(strcmp(op, '|') == 0)
+	if(op == '|')
 	{
 		return 3; 
 	}
 
-	if(strcmp(op, '&&') == 0 && strcmp(op,'||') == 0)
+	if(op == '&' || op == '{')
 	{
 		return 2; 
 	}
 
-	if(strcmp(op, ';') == 0)
+	if(op == ';')
 	{
 		return 1; 
 	}
@@ -200,7 +200,7 @@ void handle_stack(operator_stack_t *stacko, command_stack_t *stackc)
 
 	cur_op = op_pop(stacko); 
 
-	if(strcmp(cur_op, "(") == 0)
+	if(cur_op == '(')
 	{
 		op_push(stacko, cur_op); 
 		return; 
@@ -215,7 +215,7 @@ void handle_stack(operator_stack_t *stacko, command_stack_t *stackc)
 		return; 
 	}
 
-	if(strcmp(next_op, '(') == 0 && strcmp(cur_op, ')') == 0)
+	if(next_op == '(' && cur_op == ')')
 	{
 		command_t* new_com = create_command(SUBSHELL_COMMAND, NULL, NULL, NULL, com_pop(stackc));
 	}
@@ -228,22 +228,22 @@ void handle_stack(operator_stack_t *stacko, command_stack_t *stackc)
 		com_1 = com_pop(stackc); 
 		com_2 = com_pop(stackc); 
 
-		if(strcmp(next_op, '|') == 0)
+		if(next_op == '|')
 		{
 			new_com = create_command(PIPE_COMMAND, com_1, com_2, NULL, NULL);
 			com_push(stackc, &new_com); 			
 		}
-		if(strcmp(next_op, '&&') == 0)
+		if(next_op == '&')
 		{
 			new_com = create_command(AND_COMMAND, com_1, com_2, NULL, NULL);
 			com_push(stackc, &new_com);  
 		}
-		if(strcmp(next_op, '||') == 0)
+		if(next_op == '{')
 		{
 			new_com = create_command(OR_COMMAND, com_1, com_2, NULL, NULL);
 			com_push(stackc, &new_com); 
 		}
-		if(strcmp(next_op, ';') == 0)
+		if(next_op == ';')
 		{
 			new_com = create_command(SEQUENCE_COMMAND, com_1, com_2, NULL, NULL); 
 			com_push(stackc, &new_com); 
@@ -257,6 +257,43 @@ void handle_stack(operator_stack_t *stacko, command_stack_t *stackc)
 	op_push(stacko, next_op);
 	op_push(stacko, cur_op); 
 
+}
+
+void finish_stack(operator_stack_t *stacko, command_stack_t *stackc)
+{
+	char* cur_op; 
+	command_t com_1; 
+	command_t com_2; 
+	command_t new_com; 
+
+	while(!op_empty(stacko))
+	{
+		cur_op = op_pop(stacko);
+		com_1 = com_pop(stackc); 
+		com_2 = com_pop(stackc);  
+
+		if(cur_op == '|')
+		{
+			new_com = create_command(PIPE_COMMAND, com_1, com_2, NULL, NULL);
+			com_push(stackc, &new_com); 			
+		}
+		if(cur_op == '&')
+		{
+			new_com = create_command(AND_COMMAND, com_1, com_2, NULL, NULL);
+			com_push(stackc, &new_com);  
+		}
+		if(cur_op == '{')
+		{
+			new_com = create_command(OR_COMMAND, com_1, com_2, NULL, NULL);
+			com_push(stackc, &new_com); 
+		}
+		if(cur_op == ';')
+		{
+			new_com = create_command(SEQUENCE_COMMAND, com_1, com_2, NULL, NULL); 
+			com_push(stackc, &new_com); 
+		}
+	
+	}
 }
 
 typedef enum parser_component *parser_component_t;
@@ -284,16 +321,30 @@ typedef struct command_node *command_node_t;
 struct command_node
 {
   command_t* root;
-  command_node_t* next;
+  command_node_t next;
 };
+
+void node_init(command_node_t node)
+{
+	node->root = NULL; 
+	node->next = NULL; 
+}
+
 
 //linked list of command nodes
 struct command_stream
 {
-  command_node_t *head;
-  command_node_t *tail;
-  command_node_t *cursor;
+  command_node_t head;
+  command_node_t tail;
+  command_node_t cursor;
 };
+
+void stream_init(command_stream_t stream)
+{
+	stream->head = NULL; 
+	stream->tail = NULL; 
+	stream->cursor = NULL; 
+}
 
 
 command_stream_t
@@ -308,137 +359,137 @@ make_command_stream (int (*get_next_byte) (void *),
     //take in all the input
     do
       {
-	c = get_next_byte(get_next_byte_argument);
-	a[size] = c;
-	size++;
+		c = get_next_byte(get_next_byte_argument);
+		a[size] = c;
+		size++;
       }
     while (c != EOF);
 
     //enumerate the buffer
     int index = 0;
     parser_component_t *enumerated_array = malloc(sizeof(parser_component_t)*size);
-    int i = 0;
+    int z = 0;
     
     //convert buffer into enumerated buffer
-    while (i < size) 
-      {
+    while (z < size) 
+    {
 
-	if (i ==0)
-	  {
-	    if (( strcmp(a[i],'|')==0 && strcmp(a[i+1], '|') == 0) ||(strcmp(a[i],'&')==0 && strcmp(a[i+1], '&') == 0)) 
-	      {
-		enumerated_array[index] = ANDOR;
-		i += 2;
-		index++;
-	      }
+		if (z ==0)
+	  	{
+	    	if ((a[z] =='|' && a[z+1] == '|') ||(a[z] =='&' && a[z+1] == '&')) 
+	      	{
+				enumerated_array[index] = ANDOR;
+				z += 2;
+				index++;
+	      	}
 
-	      if (strcmp(a[i], '|' == 0) && strcmp(a[i+1], '|')!=0)
-	      {
-		enumerated_array[index] = PIPE;
-		i++;
-		index++;
-	      }
-	  }
+	      	if (a[z] == '|' && a[z+1] != '|')
+	      	{
+				enumerated_array[index] = PIPE;
+				z++;
+				index++;
+	      	}
+	  	}
 
-	if (i == size)
-	 {
-	   if ((strcmp(a[i],'|')==0 && strcmp(a[i-1], '|') ==0) ||(strcmp(a[i],'&')==0 && strcmp(a[i-1], '&') == 0))
-	  {
-	    enumerated_array[index] = ANDOR;
-	    i += 2;
-	    index++;
-	  }
+		if (z == size)
+	 	{
+	   		if ((a[z] =='|' && a[z-1] == '|') ||(a[z] =='&' && a[z-1] == '&'))
+	  		{
+	    		enumerated_array[index] = ANDOR;
+	    		z += 2;
+	    		index++;
+	  		}
 
-	  if (strcmp(a[i], '|' == 0) && strcmp(a[i-1], '|')!=0)
-	    {
-	      enumerated_array[index] = PIPE;
-	      i++;
-	      index++;
-	    }
-	 }
+	  		if (a[z] == '|' && a[z-1] != '|')
+	    	{
+	      		enumerated_array[index] = PIPE;
+	      		z++;
+	      		index++;
+	    	}
+	 	}
 
-	if(i != 0 && i != size)
-	  {
-	    if (  ( strcmp(a[i],'&')==0 && strcmp(a[i+1],'&')==0 ) || (strcmp(a[i], '|') == 0 && strcmp(a[i+1], '|')==0) )
-	    {
-	      enumerated_array[index] = ANDOR;
-	      i+=2;
-	      index++;
-	    }
-	    else if ( strcmp(a[i], '|') == 0 && strcmp(a[i-1], '|') != 0 && strcmp(a[i+1],'|') != 0 )
-	    {
-	      enumerated_array[index] = PIPE;
-	      i++;
-	      index++;
-	    }
-	    else if(strcmp(a[i], ';')==0)
-	    {
-	    enumerated_array[index] = SEMICOLON;
-	    index++;
-	    i++;
-	    }
-	    else if(strcmp(a[i], '#')==0)
-	    {
-	    enumerated_array[index] = POUND;
-	    index++;
-	    i++;
-	    }
-	    else if(strcmp(a[i], '\n')==0)
-	    {
-	    enumerated_array[index] = NEWLINE;
-	    index++;
-	    i++;
-	    }
-	    else if(strcmp(a[i], '<') == 0)
-	    {
-	    enumerated_array[index] = INPUT;
-	    index++;
-	    i++;
-	    }
-	    else if(strcmp(a[i], '>') == 0)
-	    {
-	    enumerated_array[index] = OUTPUT;
-	    index++;
-	    i++;
-	    }
-        else if(strcmp(a[i], '(') == 0)
-        {
-            enumerated_array[index] = INPUT;
-            index++;
-            i++;
-        }
-        else if(strcmp(a[i], ')') == 0)
-        {
-            enumerated_array[index] = OUTPUT;
-            index++;
-            i++;
-        }
+		if(z != 0 && z != size)
+	  	{
+	    	if (  (a[z] == '&' && a[z+1] =='&' ) || (a[z] == '|' && a[z+1] == '|') )
+	    	{
+	      		enumerated_array[index] = ANDOR;
+	      		z+=2;
+	      		index++;
+	    	}
+	    	else if ( a[z] == '|' && a[z-1] != '|' && a[z+1] !='|' )
+	    	{
+	      		enumerated_array[index] = PIPE;
+	      		z++;
+	      		index++;
+	    	}
+	    	else if(a[z] == ';')
+	    	{
+	    		enumerated_array[index] = SEMICOLON;
+	    		index++;
+	    		z++;
+	    	}
+	    	else if(a[z] == '#')
+	    	{
+	    		enumerated_array[index] = POUND;
+	    		index++;
+	    		z++;
+	    	}
+	    	else if(a[z] == '\n')
+	    	{
+	    		enumerated_array[index] = NEWLINE;
+	    		index++;
+	    		z++;
+	    	}
+	    	else if(a[z] == '<')
+	    	{
+	    		enumerated_array[index] = INPUT;
+	    		index++;
+	    		z++;
+	    	}
+	    	else if(a[z] == '>')
+	    	{
+	    		enumerated_array[index] = OUTPUT;
+	    		index++;
+	    		z++;
+	    	}
+        	else if(a[z] == '(')
+        	{
+            	enumerated_array[index] = INPUT;
+            	index++;
+           	 	z++;
+        	}
+        	else if(a[z] == ')')
+        	{
+            	enumerated_array[index] = OUTPUT;
+            	index++;
+            	z++;
+        	}
           
-	    else if(isalnum(a[i])==0 || (strcmp(a[i], '!') == 0) || (strcmp(a[i], '%') == 0) || (strcmp(a[i], '+') == 0) || (strcmp(a[i], ',') == 0) || (strcmp(a[i], '-') == 0) || (strcmp(a[i], '.') == 0) || (strcmp(a[i], '/') == 0) || (strcmp(a[i], ':') == 0) || (strcmp(a[i], '@') == 0) || (strcmp(a[i], '^') == 0) || (strcmp(a[i], '_') == 0))
-	    {
-            while (!(  isalnum(a[i])==0 || (strcmp(a[i], '!') == 0) || (strcmp(a[i], '%') == 0) || (strcmp(a[i], '+') == 0) || (strcmp(a[i], ',') == 0) || (strcmp(a[i], '-') == 0) || (strcmp(a[i], '.') == 0) || (strcmp(a[i], '/') == 0) || (strcmp(a[i], ':') == 0) || (strcmp(a[i], '@') == 0) || (strcmp(a[i], '^') == 0) || (strcmp(a[i], '_') == 0)))
-            {
-                i++;
-            }
+	    	else if(isalnum(a[z])==0 || (a[z] == '!') || (a[z] == '%') || (a[z] == '+') || (a[z] == ',') || (a[z] == '-') || (a[z] == '.') || (a[z] == '/') || (a[z] == ':') || (a[z] == '@') || (a[z] == '^') || (a[z] == '_'))
+	    	{
+            	while (!(isalnum(a[z])==0 || (a[z] == '!') || (a[z] == '%') || (a[z] == '+') || (a[z] == ',') || (a[z] == '-') || (a[z] == '.') || (a[z] == '/') || (a[z] == ':') || (a[z] == '@') || (a[z] == '^') || (a[z] == '_')))
+            	{
+                	z++;
+            	}
             
-		enumerated_array[index] = WORD;
-		index++;
-	    }
-        else if (strcmp(a[i],' ') ==0 || strcmp(a[i], '\t')==0 )
-        {
-            //converts any sequence of spaces into one space enumeration
-            while (strcmp(a[i],' ')==0 || strcmp(a[i], '\t')==0 )
-            {
-                i++;
-            }
-            enumerated_array[index] = SPACE;
-            index++;
-        }
-	  }
-      }
+				enumerated_array[index] = WORD;
+				index++;
+	    	}
+        	else if (a[z] == ' ' || a[z] == '\t' )
+        	{
+            	//converts any sequence of spaces into one space enumeration
+            	while (a[z] == ' ' || a[z] == '\t' )
+            	{
+                	z++;
+            	}
+            	enumerated_array[index] = SPACE;
+            	index++;
+        	}
+	  	}
+    }
     
     
-//Implement Error Checks for Enumerated Buffer
+	//Implement Error Checks for Enumerated Buffer
     int line_count = 1;
     int i = 0;
     
@@ -493,7 +544,7 @@ make_command_stream (int (*get_next_byte) (void *),
             if (i == index - 1)
             {
                 
-                if (enumerated_array[i] == )
+                //if (enumerated_array[i] == )
                 
             }
             
@@ -508,139 +559,139 @@ make_command_stream (int (*get_next_byte) (void *),
                     --note that if there are spaces need to keep checking for next command on either side
              */
         
-        parser_component_t left = ERROR;
-        parser_component_t right = ERROR;
+        	parser_component_t left = ERROR;
+        	parser_component_t right = ERROR;
         
-        if ( enumerated_array[i] == SEMICOLON)
-        {
-            //Get command to left of ;
-            int j = i;
-            while (j >= 0)
-            {
-                if (enumerated_array[j] != SPACE)
-                {
+        	if ( enumerated_array[i] == SEMICOLON)
+        	{
+            	//Get command to left of ;
+            	int j = i;
+            	while (j >= 0)
+            	{
+                	if (enumerated_array[j] != SPACE)
+                	{
                     left = enumerated_array[j];
                     break;
-                }
-                j--;
-            }
+                	}
+                	j--;
+            	}
             
-            j = i;
+            	j = i;
             
-            //Get command to right of ;
-            while (j < size)
-            {
-                if (enumerated_array[j] != SPACE   )
-                {
+            	//Get command to right of ;
+            	while (j < size)
+            	{
+                	if (enumerated_array[j] != SPACE   )
+                	{
                     right = enumerated_array[j];
                     break;
-                }
-                j++;
-            }
+                	}
+                	j++;
+            	}
             
-            //1
-            if ( left == LPAREN || left == ANDOR || left == PIPE || left == NEWLINE || left == ERROR)
-            {
-                  fprintf(stderr, "%d : Syntax error near ;", line_count);
-                exit(1);
-            }
-            //2
-            if ( right ==  ANDOR || right == PIPE || right == ERROR)
-            {
-                  fprintf(stderr, "%d : Syntax error near ;", line_count);
-                exit(1);
-            }
+            	//1
+            	if ( left == LPAREN || left == ANDOR || left == PIPE || left == NEWLINE || left == ERROR)
+            	{
+                  	fprintf(stderr, "%d : Syntax error near ;", line_count);
+                	exit(1);
+            	}
+            	//2
+            	if ( right ==  ANDOR || right == PIPE || right == ERROR)
+            	{
+                  	fprintf(stderr, "%d : Syntax error near ;", line_count);
+                	exit(1);
+            	}	
             
             
-        }
+        	}
         
         
-        left = ERROR;
-        right = ERROR;
-        // Checks for Encountering && or ||
+        	left = ERROR;
+        	right = ERROR;
+        	// Checks for Encountering && or ||
             /* 1. MUST be surrounded by words
                 --Right side can have new lines until word, but left side cannot
                 --the exception is that left side can have ) and right side can have (
              */
-        if ( enumerated_array[i] == ANDOR)
-        {
-            //Get command to left of ;
-            int j = i;
-            while (j >= 0)
-            {
-                if (enumerated_array[j] != SPACE)
-                {
-                    left = enumerated_array[j];
-                    break;
-                }
-                j--;
-            }
+        	if ( enumerated_array[i] == ANDOR)
+        	{
+            	//Get command to left of ;
+            	int j = i;
+            	while (j >= 0)
+            	{
+                	if (enumerated_array[j] != SPACE)
+                	{
+                    	left = enumerated_array[j];
+                    	break;
+                	}
+                	j--;
+            	}
             
-            j = i;
+            	j = i;
             
-            //Get command to right of ;
-            while (j < size)
-            {
-                if (enumerated_array[j] != SPACE  && enumerated_array[j] != NEWLINE  )
-                {
+            	//Get command to right of ;
+            	while (j < size)
+            	{
+                	if (enumerated_array[j] != SPACE  && enumerated_array[j] != NEWLINE  )
+                	{
                     right = enumerated_array[j];
                     break;
-                }
-                j++;
-            }
+                	}
+                	j++;
+            	}
             
-            //1
-            if ( left != WORD || right != WORD || left != RPAREN || right != LPAREN )
-            {
-                  fprintf(stderr, "%d : Syntax error near sequential command.", line_count);
-                exit(1);
-            }
-        }
+            	//1
+            	if ( left != WORD || right != WORD || left != RPAREN || right != LPAREN )
+            	{
+                  	fprintf(stderr, "%d : Syntax error near sequential command.", line_count);
+                	exit(1);
+            	}
+        	}
         
         
-        left = ERROR;
-        right = ERROR;
-        // Checks for Encountering |
+        	left = ERROR;
+        	right = ERROR;
+        	// Checks for Encountering |
         /*  1. left MUST be word or ), right MUST be word or (
                 --can check past newlines/spaces
          
          */
         
         
-        if ( enumerated_array[i] == PIPE)
-        {
-            //Get command to left of ;
-            int j = i;
-            while (j >= 0)
-            {
-                if (enumerated_array[j] != SPACE && enumerated_array[j] != NEWLINE )
-                {
-                    left = enumerated_array[j];
-                    break;
-                }
-                j--;
-            }
+       	 	if ( enumerated_array[i] == PIPE)
+        	{
+            	//Get command to left of ;
+            	int j = i;
+            	while (j >= 0)
+            	{
+                	if (enumerated_array[j] != SPACE && enumerated_array[j] != NEWLINE )
+                	{
+                    	left = enumerated_array[j];
+                    	break;
+                	}
+                	j--;
+            	}
             
-            j = i;
+            	j = i;
             
-            //Get command to right of ;
-            while (j < size)
-            {
-                if (enumerated_array[j] != SPACE  && enumerated_array[j] != NEWLINE  )
-                {
-                    right = enumerated_array[j];
-                    break;
-                }
-                j++;
-            }
+            	//get command to right of ;
+            	while (j < size)
+            	{
+                	if (enumerated_array[j] != SPACE  && enumerated_array[j] != NEWLINE  )
+                	{
+                    	right = enumerated_array[j];
+                    	break;
+                	}
+                	j++;
+            	}
             
-            //1
-            if ( left != WORD || right != WORD || left != RPAREN || right != LPAREN)
-            {
-                  fprintf(stderr, "%d : Syntax error near pipe command.", line_count);
-                exit(1);
-            }
-        }
+            	//1
+            	if ( left != WORD || right != WORD || left != RPAREN || right != LPAREN)
+            	{
+                 	 fprintf(stderr, "%d : Syntax error near pipe command.", line_count);
+                	exit(1);
+            	}
+        	}
         
         // Checks for Encountering #
         /*
@@ -745,47 +796,180 @@ make_command_stream (int (*get_next_byte) (void *),
         
         
         //INCREMENT COUNTER
-         i++
+         i++;
     }
-	    
-/*
+}
+}	    
+
 //create command trees
-operator_stack_t op_stack; 
-op_init(&op_stack); 
+	operator_stack_t op_stack; 
+	op_init(&op_stack); 
 
-command_stack_t com_stack; 
-com_stack(&com_stack);
+	command_stack_t com_stack; 
+	com_init(&com_stack);
 
-      int i = 0;
-      int j = 0; 
-      while(1)
+	command_node_t new_node; 
+	node_init(&new_node); 
+
+	command_stream_t new_stream;
+	stream_init(&new_stream);  
+
+
+
+      int x = 0;
+      int y = 0;
+      int n = 0;
+      int m = 0;
+      int q = 0; 
+
+      char* direct_word[100];   
+      char** cur_word[100][100]; 
+
+      command_t temp_com; 
+
+      while(a[x] != '\0')
       {
-      	if(isalnum(a[i]))
+      	if(isalnum(a[x]) || (a[x] == '!') || 
+      		(a[x] == '%') || (a[x] == '+')|| 
+      		(a[x] == ',') || (a[x] == '-')|| 
+      		(a[x] == '.') || (a[x] == '/')|| 
+      		(a[x] == ':') || (a[x] == '@')|| 
+      		(a[x] == '^')) 
       	{
-      		j = i; 
+      		y = x; 
       		
-      		while(isalnum(a[j]))
+      		while((a[x] != '&&') || 
+      		      (a[x] != '||') || 
+      		      (a[x] != '|' ) ||
+      		      (a[x] != ';' ) ||
+      		      (a[x] != '(' ) ||
+      		      (a[x] != ')' )  ) 
       		{
-      			j++; 
+      			y++; 
       		}
 
-      		while(i != j)
+      		while(x != y)
       		{
+      			if(a[x] == ' ')
+      			{
 
+      				while(a[x] == ' ')
+      				{
+      					x++; 
+      				}
+      				n++; 
+      			}
+      			cur_word[n][m] = a[x];
+      			x++;
+      			m++;    
       		}
+
+      		com_push(&com_stack, create_command(SIMPLE_COMMAND, NULL, NULL, cur_word, NULL ));
+      		n = 0; 
+      		m = 0;  
       	}
-      }
-*/
+
+      	if( a[x] == '&&'|| 
+      		a[x] == '||'|| 
+      		a[x] == '|' ||
+      		a[x] == ';' ||
+      		a[x] == ')' ||
+      		a[x] == '('  ) 
+      	{
+      		op_push(&op_stack, a[x]);
+      		handle_stack(&op_stack, &com_stack);  
+      		x++; 
+      	}
+
+      	if(a[x] == '<')
+      	{
+      		while(a[x] == ' ')
+      		{
+      			x++; 
+      		}
+
+      		while(a[x] != '&&' ||
+      			  a[x] != '|'  ||
+      			  a[x] != '||' ||
+      			  a[x] != ';'  ||
+      			  a[x] != ' '  ||   
+      			  a[x] != ')'  ||
+      			  a[x] != '('   )
+      		{
+      			direct_word[q] = a[x];
+      			x++;
+      			q++;
+      		}	
+
+      		temp_com = com_pop(&com_stack);
+      		temp_com->input = direct_word; 
+      		com_push(&com_stack, temp_com); 
+      	}
+
+		if(a[x] == ">")
+      	{
+      		while(a[x] == " ")
+      		{
+      			x++; 
+      		}
+
+      		while(a[x] != '&' ||
+      			  a[x] != '|' ||
+      			  a[x] != '{' ||
+      			  a[x] != ';' ||
+      			  a[x] != ' ' ||
+      			  a[x] != ')' ||
+      			  a[x] != '(' )
+      		{
+      			direct_word[q] = a[x];
+      			x++;
+      			q++;
+      		}	
+
+      		temp_com = com_pop(&com_stack);
+      		temp_com->output = direct_word; 
+      		com_push(&com_stack, temp_com); 
+      	}
+
+      	if(a[x] == '\n')
+      	{
+      		finish_stack(&op_stack, &com_stack);
+      		new_node->root = com_pop(&com_stack);  
+      	}
+
+      		if(new_stream->tail == NULL)
+      		{
+      			new_stream->tail = &new_node;	
+      		}
+      		else
+      		{
+      			new_stream->tail->next = &new_node; 
+      			new_stream->tail = new_stream->tail->next; 
+      		}
+      		 
+
+      		if(new_stream->head == NULL)
+      		{
+      			new_stream->head = new_stream->tail; 
+      		}
 
 
+			x++;       		 
+			y = 0; 
+    }
+
+	  new_stream->cursor = new_stream->head;
+      return new_stream; 
 
 	      
   /* FIXME: Replace this with your implementation.  You may need to
      add auxiliary functions and otherwise modify the source code.
      You can also use external functions defined in the GNU C Library.  */
-  error (1, 0, "command reading not yet implemented");
-  return 0;
+  //error (1, 0, "command reading not yet implemented");
+  //return 0;
 }
+
+
 
 command_t
 read_command_stream (command_stream_t s)
@@ -794,3 +978,5 @@ read_command_stream (command_stream_t s)
   error (1, 0, "command reading not yet implemented");
   return 0;
 }
+
+
