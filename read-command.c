@@ -143,21 +143,21 @@ int com_empty(command_stack_t* stack)
 //////////END STACK DEFINITION////////////
 //Reference: groups.csail.mit.edu/graphics/classes/6.837/F04/cpp_notes/stack1.html
 
-int get_precendence(char* op)
+int get_precedence(char* op)
 {
 	//|, ||/&&, ;/\n
 
-	if(op == '|')
+	if(*op == '|')
 	{
 		return 3; 
 	}
 
-	if(op == '&' || op == '{')
+	if(*op == '&' || *op == '{')
 	{
 		return 2; 
 	}
 
-	if(op == ';')
+	if(*op == ';')
 	{
 		return 1; 
 	}
@@ -171,8 +171,10 @@ int get_precendence(char* op)
 
 command_t create_command(enum command_type type, command_t* child_1, command_t* child_2, char** word, command_t* subshell)
 {
-	command_t return_val; 
-	return_val->type = type; 
+
+
+        command_t return_val;
+        return_val->type = type; 
 	return_val->u.command[0] = child_1; 
 	return_val->u.command[1] = child_2; 
 	return_val->u.word = word;
@@ -200,7 +202,7 @@ void handle_stack(operator_stack_t *stacko, command_stack_t *stackc)
 
 	cur_op = op_pop(stacko); 
 
-	if(cur_op == '(')
+	if(*cur_op == '(')
 	{
 		op_push(stacko, cur_op); 
 		return; 
@@ -208,14 +210,14 @@ void handle_stack(operator_stack_t *stacko, command_stack_t *stackc)
 
 	next_op = op_pop(stacko); 
 
-	if(get_precendence(next_op) < get_precendence(cur_op))
+	if(get_precedence(next_op) < get_precedence(cur_op))
 	{
 		op_push(stacko, next_op); 
 		op_push(stacko, cur_op); 
 		return; 
 	}
 
-	if(next_op == '(' && cur_op == ')')
+	if(*next_op == '(' && *cur_op == ')')
 	{
 		command_t* new_com = create_command(SUBSHELL_COMMAND, NULL, NULL, NULL, com_pop(stackc));
 	}
@@ -223,27 +225,27 @@ void handle_stack(operator_stack_t *stacko, command_stack_t *stackc)
 	command_t* com_1; 
 	command_t* com_2; 
 	command_t* new_com; 
-	while(get_precendence(next_op) >= get_precendence(cur_op))
+	while(get_precedence(next_op) >= get_precedence(cur_op))
 	{
 		com_1 = com_pop(stackc); 
 		com_2 = com_pop(stackc); 
 
-		if(next_op == '|')
+		if(*next_op == '|')
 		{
 			new_com = create_command(PIPE_COMMAND, com_1, com_2, NULL, NULL);
 			com_push(stackc, &new_com); 			
 		}
-		if(next_op == '&')
+		if(*next_op == '&')
 		{
 			new_com = create_command(AND_COMMAND, com_1, com_2, NULL, NULL);
 			com_push(stackc, &new_com);  
 		}
-		if(next_op == '{')
+		if(*next_op == '{')
 		{
 			new_com = create_command(OR_COMMAND, com_1, com_2, NULL, NULL);
 			com_push(stackc, &new_com); 
 		}
-		if(next_op == ';')
+		if(*next_op == ';')
 		{
 			new_com = create_command(SEQUENCE_COMMAND, com_1, com_2, NULL, NULL); 
 			com_push(stackc, &new_com); 
@@ -272,22 +274,22 @@ void finish_stack(operator_stack_t *stacko, command_stack_t *stackc)
 		com_1 = com_pop(stackc); 
 		com_2 = com_pop(stackc);  
 
-		if(cur_op == '|')
+		if(*cur_op == '|')
 		{
 			new_com = create_command(PIPE_COMMAND, com_1, com_2, NULL, NULL);
 			com_push(stackc, &new_com); 			
 		}
-		if(cur_op == '&')
+		if(*cur_op == '&')
 		{
 			new_com = create_command(AND_COMMAND, com_1, com_2, NULL, NULL);
 			com_push(stackc, &new_com);  
 		}
-		if(cur_op == '{')
+		if(*cur_op == '{')
 		{
 			new_com = create_command(OR_COMMAND, com_1, com_2, NULL, NULL);
 			com_push(stackc, &new_com); 
 		}
-		if(cur_op == ';')
+		if(*cur_op == ';')
 		{
 			new_com = create_command(SEQUENCE_COMMAND, com_1, com_2, NULL, NULL); 
 			com_push(stackc, &new_com); 
@@ -295,8 +297,6 @@ void finish_stack(operator_stack_t *stacko, command_stack_t *stackc)
 	
 	}
 }
-
-typedef enum parser_component *parser_component_t;
 
 enum parser_component
 {
@@ -347,6 +347,165 @@ void stream_init(command_stream_t stream)
 }
 
 
+/*Process character buffer such that
+ ->&& becomes &
+ -> || becomes {
+ -> comments # are removed
+ -> The processed buffer follows the syntax Complete Command \n Complete Command \n Complete Command \n etc...
+ -> removes ALL spaces
+ */
+void process(char* a, int size)
+{
+    int i = 0;
+    int x = 0;
+    int temp = 0;
+    while ( i < size)
+    {
+        //Remove && and replace with
+        if (a[i] == '&')
+        {
+            x = i;
+            size--;
+            do
+            {
+                x++;
+                a[x-1] = a[x];
+            }
+            while (x < size);
+        }
+        
+        //Remove || and replace with {, need to copy everything past it backwards
+        if (a[i] == '|' && a[i+1] == '|')
+        {
+            x=i;
+            size--;
+            a[x+1] = '{';
+            do
+            {
+                x++;
+                a[x-1] = a[x];
+            }
+            while (x < size);
+        }
+        
+        //Remove all characters from # to first newline character
+        if (a[i] == '#')
+        {
+            
+            //count number of characters of comment
+            temp = 1;
+            x = i;
+            do
+            {
+                x++;
+                temp++;
+            }
+            while (a[x] != '\n' || a[x] != EOF);
+            
+            //Overwrite that # characters effectively removing the comment
+            while (temp > 0)
+            {
+                x= i;
+                size--;
+                do
+                {
+                    x++;
+                    a[x-1] = a[x];
+                }
+                while (x < size);
+                temp--;
+            }
+            
+        }
+        
+        //Remove all consecutive newline characters
+        if (a[i] == '\n')
+        {
+            //count number of consecutive newline characters
+            temp = 0;
+            x = i;
+            do
+            {
+                x++;
+                temp++;
+            }
+            while (a[x] == '\n');
+            
+            //Overwrite that # characters such that only one \n remains
+            while (temp > 1)
+            {
+                x= i;
+                size--;
+                do
+                {
+                    x++;
+                    a[x-1] = a[x];
+                }
+                while (x < size);
+                temp--;
+            }
+        }
+        
+        //Remove all spaces
+        if (a[i] == ' ')
+        {
+            //count number of consecutive newline characters
+            temp = 1;
+            x = i;
+            do
+            {
+                x++;
+                temp++;
+            }
+            while (a[x] == ' ');
+            
+            //Overwrite that # characters such that no space remains
+            while (temp > 0)
+            {
+                x= i;
+                size--;
+                do
+                {
+                    x++;
+                    a[x-1] = a[x];
+                }
+                while (x < size);
+                temp--;
+            }
+        }
+        
+        i++;
+    }
+    
+    i = 0;
+    while (i < size)
+    {
+        //Handles the case where you have 'a &\n b' or 'a | \n b'
+        if (a[i] == '{' || a[i] == '&' || a[i] == '|')
+        {
+            if (a[i+1] == '\n')
+            {
+                x = i;
+                size--;
+                do
+                {
+                    x++;
+                    a[x-1] = a[x];
+                }
+                while (x < size);
+                temp--;
+            }
+          
+        }
+        
+        i++;
+    }
+    
+    
+    
+}
+
+
 command_stream_t
 make_command_stream (int (*get_next_byte) (void *),
     	     void *get_next_byte_argument)
@@ -367,13 +526,15 @@ make_command_stream (int (*get_next_byte) (void *),
 
     //enumerate the buffer
     int index = 0;
-    parser_component_t *enumerated_array = malloc(sizeof(parser_component_t)*size);
+
+    enum parser_component  *enumerated_array = malloc(sizeof(enum parser_component)*size);
+
+    //parser_component_t *enumerated_array = malloc(sizeof(parser_component)*size);
     int z = 0;
     
     //convert buffer into enumerated buffer
     while (z < size) 
     {
-
 		if (z ==0)
 	  	{
 	    	if ((a[z] =='|' && a[z+1] == '|') ||(a[z] =='&' && a[z+1] == '&')) 
@@ -430,7 +591,14 @@ make_command_stream (int (*get_next_byte) (void *),
 	    	}
 	    	else if(a[z] == '#')
 	    	{
-	    		enumerated_array[index] = POUND;
+                if (a[z-1] != ' ' || a[z-1] != '\t' || a[z-1] != '\n')
+                {
+                    enumerated_array[index] = ERROR;
+                }
+                else
+                {
+                    enumerated_array[index] = POUND;
+                }
 	    		index++;
 	    		z++;
 	    	}
@@ -492,11 +660,16 @@ make_command_stream (int (*get_next_byte) (void *),
 	//Implement Error Checks for Enumerated Buffer
     int line_count = 1;
     int i = 0;
+    int leftcount = 0;
+    int rightcount = 0;
+    
     
     while (i < index)
     {
-        int line_count = 1;
-        i = 0;
+        if (rightcount > leftcount)
+        {
+            fprintf(stderr, "%d: No matching parentheses", line_count);
+        }
         
         while (i < index)
         {
@@ -548,19 +721,14 @@ make_command_stream (int (*get_next_byte) (void *),
                 
             }
             
-            
-            
-            
-            
-            
         // Checks for Encountering ;
             /*  1. cannot be surrounded by &&, ||, |
                 2. cannot have (, \n to the left of it
                     --note that if there are spaces need to keep checking for next command on either side
              */
         
-        	parser_component_t left = ERROR;
-        	parser_component_t right = ERROR;
+        	enum parser_component left = ERROR;
+        	enum parser_component right = ERROR;
         
         	if ( enumerated_array[i] == SEMICOLON)
         	{
@@ -722,10 +890,10 @@ make_command_stream (int (*get_next_byte) (void *),
          Increments the line counter
          */
             
-        if ( enumerated_array[i] == NEWLINE)
-        {
-            line_count++;
-        }
+            if ( enumerated_array[i] == NEWLINE)
+            {
+                line_count++;
+            }
             
             left = ERROR;
             right = ERROR;
@@ -774,32 +942,49 @@ make_command_stream (int (*get_next_byte) (void *),
                     fprintf(stderr, "%d : Syntax error I/O command.", line_count);
                     exit(1);
                 }
-            
+            }
             
         // Checks for Encountering (
         /*
          */
             
-            
+            if (enumerated_array[i] == LPAREN)
+            {
+                leftcount++;
+            }
         // Checks for Encountering )
         /*
          */
-            
-            
+            if (enumerated_array[i]== RPAREN)
+            {
+                if (enumerated_array[i-1] == LPAREN)
+                {
+                    fprintf(stderr, "%d : Empty subshell", line_count);
+                }
+                rightcount++;
+            }
         // Checks for Encountering Space
         /*
          */
-            
         // Checks for Encountering Word
         /*
          */
-        
-        
         //INCREMENT COUNTER
-         i++;
+        }
+        i++;
     }
-}
-}	    
+
+//At this point, the input has passed all tests, so it's valid, now need to process
+    
+    
+/*Process character buffer such that
+    ->&& becomes &
+    -> || becomes {
+    -> comments # are removed
+    -> The processed buffer follows the syntax Complete Command \n Complete Command \n Complete Command \n etc...
+*/
+    
+    process(a, size);
 
 //create command trees
 	operator_stack_t op_stack; 
@@ -838,8 +1023,8 @@ make_command_stream (int (*get_next_byte) (void *),
       	{
       		y = x; 
       		
-      		while((a[x] != '&&') || 
-      		      (a[x] != '||') || 
+      		while((a[x] != '&') ||
+      		      (a[x] != '{') ||
       		      (a[x] != '|' ) ||
       		      (a[x] != ';' ) ||
       		      (a[x] != '(' ) ||
@@ -869,8 +1054,8 @@ make_command_stream (int (*get_next_byte) (void *),
       		m = 0;  
       	}
 
-      	if( a[x] == '&&'|| 
-      		a[x] == '||'|| 
+      	if( a[x] == '&'||
+      		a[x] == '{'||
       		a[x] == '|' ||
       		a[x] == ';' ||
       		a[x] == ')' ||
@@ -888,9 +1073,9 @@ make_command_stream (int (*get_next_byte) (void *),
       			x++; 
       		}
 
-      		while(a[x] != '&&' ||
+      		while(a[x] != '&' ||
       			  a[x] != '|'  ||
-      			  a[x] != '||' ||
+      			  a[x] != '{' ||
       			  a[x] != ';'  ||
       			  a[x] != ' '  ||   
       			  a[x] != ')'  ||
