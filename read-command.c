@@ -323,22 +323,6 @@ void finish_stack(operator_stack_t *stacko, command_stack_t *stackc)
 	}
 }
 
-enum parser_component
-{
-  WORD,
-  SEMICOLON,
-  ANDOR,
-  PIPE,
-  POUND,
-  NEWLINE,
-  INPUT, // <
-  OUTPUT, //>
-  ERROR,
-    LPAREN,
-    RPAREN,
-  SPACE,
-};
-
 
 typedef struct command_node *command_node_t;
 
@@ -366,10 +350,10 @@ struct command_stream
 
 void stream_init(command_stream_t stream)
 {
-	stream->head = NULL;
-	stream->tail = (command_node_t)malloc(sizeof(struct command_node)); 
-	stream->tail = NULL; 
-	stream->cursor = NULL; 
+    stream->head = NULL;
+    stream->tail = NULL;
+    stream->cursor = NULL;
+    
 }
 
 
@@ -830,28 +814,31 @@ make_command_stream (int (*get_next_byte) (void *),
       		finish_stack(&op_stack, &com_stack);
 
 
-	command_node_t new_node = (command_node_t)malloc(sizeof(struct command_node));
-	node_init(new_node); 
+            command_node_t new_node = (command_node_t)malloc(sizeof(struct command_node));
+            node_init(new_node);
       		new_node->root = (command_t*)malloc(sizeof(command_t)); 
       		new_node -> root = com_pop(&com_stack);  
       	
 
       		if(new_stream->tail == NULL)
       		{
-      			new_stream->tail = new_node;
-      			new_stream->tail->root--;
-      	
+                new_stream->tail = (command_node_t)malloc(sizeof(struct command_node));
+                node_init(new_stream->tail);
+                new_stream->tail = new_node;
       		}
       		else
       		{
-		  	  new_stream->tail->next = new_node; 
-      		  new_stream->tail = new_stream->tail->next; 
+                new_stream->tail->next = (command_node_t) malloc(sizeof(struct command_node));
+                node_init(new_stream->tail->next);
+                new_stream->tail = new_stream->tail->next;
       		}
       		 
 
       		if(new_stream->head == NULL)
       		{
-      			new_stream->head = new_stream->tail; 
+                new_stream->head = (command_node_t) malloc(sizeof(struct command_node));
+                node_init(new_stream->head);
+                new_stream->head = new_stream->tail;
       		}
 
       	}       		 
