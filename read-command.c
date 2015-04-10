@@ -171,14 +171,26 @@ int get_precedence(char* op)
 
 command_t create_command(enum command_type type, command_t* child_1, command_t* child_2, char** word, command_t* subshell)
 {
-
-
         command_t return_val;
-        return_val->type = type; 
-	return_val->u.command[0] = child_1; 
-	return_val->u.command[1] = child_2; 
-	return_val->u.word = word;
-	return_val->u.subshell_command; 
+	return_val->type = type;
+	
+	if (child_1 != NULL)
+	  {
+	    return_val->u.command[0] = *child_1;
+	    return_val->u.command[1] = *child_2;
+	  }
+
+	if (word != NULL)
+	  {
+	    return_val->u.word = word;
+	  }
+
+	if (subshell != NULL)
+	  {
+
+	    return_val->u.subshell_command = *subshell;
+	  }
+			 
 	return return_val;  
 }
 
@@ -199,7 +211,7 @@ void handle_stack(operator_stack_t *stacko, command_stack_t *stackc)
 	char* cur_op;
 	char* next_op;  
 	command_t* cur_com; 
-
+	command_t* new_com = (command_t*)malloc(sizeof(command_t));
 	cur_op = op_pop(stacko); 
 
 	if(*cur_op == '(')
@@ -219,36 +231,38 @@ void handle_stack(operator_stack_t *stacko, command_stack_t *stackc)
 
 	if(*next_op == '(' && *cur_op == ')')
 	{
-		command_t* new_com = create_command(SUBSHELL_COMMAND, NULL, NULL, NULL, com_pop(stackc));
+	  *new_com =  create_command(SUBSHELL_COMMAND, NULL, NULL, NULL, com_pop(stackc));
 	}
 
 	command_t* com_1; 
 	command_t* com_2; 
-	command_t* new_com; 
+       
 	while(get_precedence(next_op) >= get_precedence(cur_op))
 	{
+	  com_1 = (command_t*)malloc(sizeof(command_t));
+	  com_2 = (command_t*)malloc(sizeof(command_t));
 		com_1 = com_pop(stackc); 
 		com_2 = com_pop(stackc); 
 
 		if(*next_op == '|')
 		{
-			new_com = create_command(PIPE_COMMAND, com_1, com_2, NULL, NULL);
-			com_push(stackc, &new_com); 			
+			*new_com = create_command(PIPE_COMMAND, com_1, com_2, NULL, NULL);
+			com_push(stackc, new_com); 			
 		}
 		if(*next_op == '&')
 		{
-			new_com = create_command(AND_COMMAND, com_1, com_2, NULL, NULL);
-			com_push(stackc, &new_com);  
+			*new_com = create_command(AND_COMMAND, com_1, com_2, NULL, NULL);
+			com_push(stackc, new_com);  
 		}
 		if(*next_op == '{')
 		{
-			new_com = create_command(OR_COMMAND, com_1, com_2, NULL, NULL);
-			com_push(stackc, &new_com); 
+			*new_com = create_command(OR_COMMAND, com_1, com_2, NULL, NULL);
+			com_push(stackc, new_com); 
 		}
 		if(*next_op == ';')
 		{
-			new_com = create_command(SEQUENCE_COMMAND, com_1, com_2, NULL, NULL); 
-			com_push(stackc, &new_com); 
+			*new_com = create_command(SEQUENCE_COMMAND, com_1, com_2, NULL, NULL); 
+			com_push(stackc, new_com); 
 		}
 		
 
@@ -264,9 +278,9 @@ void handle_stack(operator_stack_t *stacko, command_stack_t *stackc)
 void finish_stack(operator_stack_t *stacko, command_stack_t *stackc)
 {
 	char* cur_op; 
-	command_t com_1; 
-	command_t com_2; 
-	command_t new_com; 
+	command_t *com_1 = (command_t*)malloc(sizeof(command_t)); 
+        command_t *com_2 = (command_t*)malloc(sizeof(command_t));
+	command_t *new_com = (command_t*)malloc(sizeof(command_t)); 
 
 	while(!op_empty(stacko))
 	{
@@ -276,23 +290,23 @@ void finish_stack(operator_stack_t *stacko, command_stack_t *stackc)
 
 		if(*cur_op == '|')
 		{
-			new_com = create_command(PIPE_COMMAND, com_1, com_2, NULL, NULL);
-			com_push(stackc, &new_com); 			
+			*new_com = create_command(PIPE_COMMAND, com_1, com_2, NULL, NULL);
+			com_push(stackc, new_com); 			
 		}
 		if(*cur_op == '&')
 		{
-			new_com = create_command(AND_COMMAND, com_1, com_2, NULL, NULL);
-			com_push(stackc, &new_com);  
+			*new_com = create_command(AND_COMMAND, com_1, com_2, NULL, NULL);
+			com_push(stackc, new_com);  
 		}
 		if(*cur_op == '{')
 		{
-			new_com = create_command(OR_COMMAND, com_1, com_2, NULL, NULL);
-			com_push(stackc, &new_com); 
+			*new_com = create_command(OR_COMMAND, com_1, com_2, NULL, NULL);
+			com_push(stackc, new_com); 
 		}
 		if(*cur_op == ';')
 		{
-			new_com = create_command(SEQUENCE_COMMAND, com_1, com_2, NULL, NULL); 
-			com_push(stackc, &new_com); 
+			*new_com = create_command(SEQUENCE_COMMAND, com_1, com_2, NULL, NULL); 
+			com_push(stackc, new_com); 
 		}
 	
 	}
@@ -511,7 +525,7 @@ make_command_stream (int (*get_next_byte) (void *),
     	     void *get_next_byte_argument)
 {
     //Make the buffer
-    char *a = malloc(sizeof(char) * 1000);
+  char *a = (char*)malloc(sizeof(char) * 1000);
     int size = 0;
     char c;
 
@@ -527,7 +541,7 @@ make_command_stream (int (*get_next_byte) (void *),
     //enumerate the buffer
     int index = 0;
 
-    enum parser_component  *enumerated_array = malloc(sizeof(enum parser_component)*size);
+    enum parser_component  *enumerated_array = (enum parser_component*)malloc(sizeof(enum parser_component)*size);
 
     //parser_component_t *enumerated_array = malloc(sizeof(parser_component)*size);
     int z = 0;
@@ -987,17 +1001,17 @@ make_command_stream (int (*get_next_byte) (void *),
     process(a, size);
 
 //create command trees
-	operator_stack_t op_stack; 
+    operator_stack_t op_stack; 
 	op_init(&op_stack); 
 
 	command_stack_t com_stack; 
 	com_init(&com_stack);
 
-	command_node_t new_node; 
-	node_init(&new_node); 
+	command_node_t new_node;
+	node_init(new_node); 
 
 	command_stream_t new_stream;
-	stream_init(&new_stream);  
+	stream_init(new_stream);  
 
 
 
@@ -1007,10 +1021,16 @@ make_command_stream (int (*get_next_byte) (void *),
       int m = 0;
       int q = 0; 
 
-      char* direct_word[100];   
-      char** cur_word[100][100]; 
+      char* direct_word=(char*)malloc(sizeof(char)*100);   
+      char** cur_word = (char**)malloc(sizeof(char*)*100);
 
-      command_t temp_com; 
+      int zx = 0;
+      while (zx < 100)
+	{
+	  cur_word[z] = (char*)malloc(sizeof(char)*100);
+	}
+      
+      command_t temp_com;
 
       while(a[x] != '\0')
       {
@@ -1049,7 +1069,9 @@ make_command_stream (int (*get_next_byte) (void *),
       			m++;    
       		}
 
-      		com_push(&com_stack, create_command(SIMPLE_COMMAND, NULL, NULL, cur_word, NULL ));
+		command_t *tx = (command_t*)malloc(sizeof(command_t));
+		*tx = create_command(SIMPLE_COMMAND, NULL, NULL, cur_word, NULL );
+      		com_push(&com_stack, tx);
       		n = 0; 
       		m = 0;  
       	}
@@ -1061,7 +1083,7 @@ make_command_stream (int (*get_next_byte) (void *),
       		a[x] == ')' ||
       		a[x] == '('  ) 
       	{
-      		op_push(&op_stack, a[x]);
+      		op_push(&op_stack, &a[x]);
       		handle_stack(&op_stack, &com_stack);  
       		x++; 
       	}
@@ -1086,14 +1108,16 @@ make_command_stream (int (*get_next_byte) (void *),
       			q++;
       		}	
 
-      		temp_com = com_pop(&com_stack);
+		command_t * tz = (command_t*)malloc(sizeof(command_t));
+		tz = com_pop(&com_stack);
+      		temp_com = *tz;
       		temp_com->input = direct_word; 
-      		com_push(&com_stack, temp_com); 
+      		com_push(&com_stack, &temp_com); 
       	}
 
-		if(a[x] == ">")
+		if(a[x] == '>')
       	{
-      		while(a[x] == " ")
+      		while(a[x] == ' ')
       		{
       			x++; 
       		}
@@ -1110,10 +1134,11 @@ make_command_stream (int (*get_next_byte) (void *),
       			x++;
       			q++;
       		}	
-
-      		temp_com = com_pop(&com_stack);
-      		temp_com->output = direct_word; 
-      		com_push(&com_stack, temp_com); 
+		command_t * tz = (command_t*)malloc(sizeof(command_t));
+		tz = com_pop(&com_stack);
+		temp_com = *tz;
+		temp_com->input = direct_word;
+		com_push(&com_stack, &temp_com);
       	}
 
       	if(a[x] == '\n')
@@ -1124,12 +1149,12 @@ make_command_stream (int (*get_next_byte) (void *),
 
       		if(new_stream->tail == NULL)
       		{
-      			new_stream->tail = &new_node;	
+      			new_stream->tail = new_node;	
       		}
       		else
       		{
-      			new_stream->tail->next = &new_node; 
-      			new_stream->tail = new_stream->tail->next; 
+		  new_stream->tail->next = new_node; 
+      		  new_stream->tail = new_stream->tail->next; 
       		}
       		 
 
@@ -1137,8 +1162,6 @@ make_command_stream (int (*get_next_byte) (void *),
       		{
       			new_stream->head = new_stream->tail; 
       		}
-
-
 			x++;       		 
 			y = 0; 
     }
