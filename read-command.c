@@ -26,6 +26,15 @@
 /* FIXME: Define the type 'struct command_stream' here.  This should
    complete the incomplete type declaration in command.h.  */
 
+
+
+
+
+
+
+
+
+
 ///////////BEGIN STACK DEFINITION////////////////
 
 #define STACK_SIZE 100
@@ -91,7 +100,7 @@ int op_empty(operator_stack_t* stack)
  
 typedef struct 
 {
-	command_t* data[STACK_SIZE];
+	command_t data[STACK_SIZE];
 	int top;
 }command_stack_t;
 
@@ -100,9 +109,9 @@ void com_init(command_stack_t* stack)
 	stack->top = 0; 
 }
 
-command_t* com_pop(command_stack_t* stack)
+command_t *com_pop(command_stack_t* stack)
 {
-	command_t* return_val; 
+	command_t *return_val; 
 	if (stack->top == 0)
 	{
 		return NULL;
@@ -171,7 +180,7 @@ int get_precedence(char* op)
 
 command_t create_command(enum command_type type, command_t* child_1, command_t* child_2, char** word, command_t* subshell)
 {
-        command_t return_val;
+        command_t return_val = (command_t)malloc(sizeof(command_t));
 	return_val->type = type;
 	
 	if (child_1 != NULL)
@@ -191,7 +200,9 @@ command_t create_command(enum command_type type, command_t* child_1, command_t* 
 	    return_val->u.subshell_command = *subshell;
 	  }
 			 
-	return return_val;  
+	return_val->status = -1; 
+	return return_val;
+
 }
 
 
@@ -334,8 +345,8 @@ typedef struct command_node *command_node_t;
 //command tree
 struct command_node
 {
-  command_t* root;
-  command_node_t next;
+  command_t *root; 
+  command_node_t *next;
 };
 
 void node_init(command_node_t node)
@@ -355,650 +366,313 @@ struct command_stream
 
 void stream_init(command_stream_t stream)
 {
-	stream->head = NULL; 
+	stream->head = NULL;
+	stream->tail = (command_node_t)malloc(sizeof(struct command_node)); 
 	stream->tail = NULL; 
 	stream->cursor = NULL; 
 }
 
 
-/*Process character buffer such that
- ->&& becomes &
- -> || becomes {
- -> comments # are removed
- -> The processed buffer follows the syntax Complete Command \n Complete Command \n Complete Command \n etc...
- -> removes ALL spaces
- */
-void process(char* a, int size)
-{
-    int i = 0;
-    int x = 0;
-    int temp = 0;
-    while ( i < size)
-    {
-        //Remove && and replace with
-        if (a[i] == '&')
-        {
-            x = i;
-            size--;
-            do
-            {
-                x++;
-                a[x-1] = a[x];
-            }
-            while (x < size);
-        }
-        
-        //Remove || and replace with {, need to copy everything past it backwards
-        if (a[i] == '|' && a[i+1] == '|')
-        {
-            x=i;
-            size--;
-            a[x+1] = '{';
-            do
-            {
-                x++;
-                a[x-1] = a[x];
-            }
-            while (x < size);
-        }
-        
-        //Remove all characters from # to first newline character
-        if (a[i] == '#')
-        {
-            
-            //count number of characters of comment
-            temp = 1;
-            x = i;
-            do
-            {
-                x++;
-                temp++;
-            }
-            while (a[x] != '\n' || a[x] != EOF);
-            
-            //Overwrite that # characters effectively removing the comment
-            while (temp > 0)
-            {
-                x= i;
-                size--;
-                do
-                {
-                    x++;
-                    a[x-1] = a[x];
-                }
-                while (x < size);
-                temp--;
-            }
-            
-        }
-        
-        //Remove all consecutive newline characters
-        if (a[i] == '\n')
-        {
-            //count number of consecutive newline characters
-            temp = 0;
-            x = i;
-            do
-            {
-                x++;
-                temp++;
-            }
-            while (a[x] == '\n');
-            
-            //Overwrite that # characters such that only one \n remains
-            while (temp > 1)
-            {
-                x= i;
-                size--;
-                do
-                {
-                    x++;
-                    a[x-1] = a[x];
-                }
-                while (x < size);
-                temp--;
-            }
-        }
-        
-        //Remove all spaces
-        if (a[i] == ' ')
-        {
-            //count number of consecutive newline characters
-            temp = 1;
-            x = i;
-            do
-            {
-                x++;
-                temp++;
-            }
-            while (a[x] == ' ');
-            
-            //Overwrite that # characters such that no space remains
-            while (temp > 0)
-            {
-                x= i;
-                size--;
-                do
-                {
-                    x++;
-                    a[x-1] = a[x];
-                }
-                while (x < size);
-                temp--;
-            }
-        }
-        
-        i++;
-    }
-    
-    i = 0;
-    while (i < size)
-    {
-        //Handles the case where you have 'a &\n b' or 'a | \n b'
-        if (a[i] == '{' || a[i] == '&' || a[i] == '|')
-        {
-            if (a[i+1] == '\n')
-            {
-                x = i;
-                size--;
-                do
-                {
-                    x++;
-                    a[x-1] = a[x];
-                }
-                while (x < size);
-                temp--;
-            }
-          
-        }
-        
-        i++;
-    }
-    
-    
-    
-}
+
 
 
 command_stream_t
 make_command_stream (int (*get_next_byte) (void *),
     	     void *get_next_byte_argument)
 {
-    //Make the buffer
-  char *a = (char*)malloc(sizeof(char) * 1000);
+    
+ //Make the buffer
+    char *a = (char*)malloc(sizeof(char) * 1000);
     int size = 0;
     char c;
-
+    
     //take in all the input
+    int line_count = 0;
+
+    //Input Flags
+    bool space = false;
+    bool newline = false;
+    bool and = false;
+    bool or = false;
+    bool lparen = false;
+    bool rparen = false;
+    bool semicolon = false;
+    bool pipe = false;
+    bool redirect = false;
+    bool word = false;
+
+    int leftcount = 0;
+    int rightcount = 0;
+
+
     do
       {
 		c = get_next_byte(get_next_byte_argument);
-		a[size] = c;
-		size++;
+
+        //Invalid characters produces error
+        /*if (!valid_char(c) && !valid_token(c))
+        {
+            fprintf(stderr, "%d : Invalid character", line_count);
+            exit(1);
+        }*/
+
+        //First character cnanot be any of the following
+        if (size == 0 && (c == ')' || c == ';' || c == '&' || c == '|' || c == '<'))
+        {
+            fprintf(stderr, "%d : Invalid syntax at beginning of input", line_count);
+            exit(1);
+        }
+
+        //If run into space, and a space has just been added to buffer, continue (so that final buffer doesn't have repeating spaces)
+        if (c == ' ' || c == 't')
+        {
+            if (space)
+            {
+                continue;
+            }
+
+            else 
+            {
+                c =  ' ';
+                space = true;
+            }
+        }
+
+        //If run into comment, keep getting input until \n to ignore the comment out of buffer. Also, use !space to check for unordinary token
+        else if (c == '#')
+        {
+            if (!space)
+            {
+                fprintf(stderr, "%d: Not an ordinary token before #", line_count);
+                exit(1);
+            }
+
+            do 
+            {
+                c = get_next_byte(get_next_byte_argument);
+            }
+            while ( c!= '\n');
+
+            word = false;
+            space = false;
+            and = false;
+            or = false;
+            newline = false;
+            lparen = false;
+            rparen = false;
+            semicolon = false;
+            pipe = false;
+            redirect = false;
+            continue;
+        }
+        
+        //If run into new line, increment line counter, also ignore consecutive newline characters, also accounts for & \n case, can't be preceded by < or >
+        else if (c == '\n')
+        {
+
+            if (redirect)
+            {
+                fprintf(stderr, "%d: Error near redirect", line_count);
+                exit(1);
+            }
+
+            line_count++;
+
+             if (newline || and || or || pipe )
+            {
+                continue;
+            }
+
+            if (leftcount != rightcount)
+            {
+                fprintf(stderr, "%d: Error near redirect", line_count);
+                exit(1);
+            }
+
+            word = false;
+            space = false;
+            and = false;
+            or = false;
+            lparen = false;
+            rparen = false;
+            semicolon = false;
+            redirect = false;
+             newline = true;
+             pipe = false;
+             leftcount = 0;
+             rightcount = 0;
+        }
+
+        //If run into ;, can't have ( or \n or & or | to left of it)
+        else if (c ==';')
+        {
+
+            if ( (semicolon || lparen || and || or || newline || pipe || redirect) || !word )
+            {
+                fprintf(stderr, "%d : Invalid syntax near ;", line_count);
+                exit(1);
+            }
+
+            space = false;
+            and = false;
+            or = false;
+            newline = false;
+            lparen = false;
+            rparen = false;
+            semicolon = true;
+            pipe = false;
+            redirect = false;
+            word = false;
+        }
+
+        //If run into &, can't have ; or ( to left of it or | to left of it
+        //Need to convert && to & and can't have &&&
+        else if (c == '&')
+        {
+            if ( (semicolon || lparen || and || or || pipe || redirect || newline) || !word )
+            {
+               fprintf(stderr, "%d : Invalid syntax near sequential command", line_count);
+               exit(1);
+            }
+
+            c = get_next_byte(get_next_byte_argument);
+
+            if (c != '&')
+            {
+                fprintf(stderr, "%d : Invalid syntax near sequential command", line_count);
+                exit(1);
+            }
+
+            and = true;
+            or = false;
+            semicolon = false;
+            lparen = false;
+            rparen = false;
+            newline = false;
+            space = false;
+            pipe = false;
+            redirect = false;
+        }
+
+        //If run into |, can't have ; or ( to left of it, makes || into {
+        else if (c == '|')
+        {
+            if (semicolon || lparen || pipe || and || redirect || newline)
+            {
+                fprintf(stderr, "%d : Invalid syntax near |", line_count);
+                exit(1);
+            }
+
+            if (or)
+            {
+                a[size] = '{';
+                pipe = true;
+                or = false;
+            }
+
+            else
+            {
+                pipe = false;
+                or = true;
+            }
+
+            and = false;
+            semicolon = false;
+            lparen = false;
+            rparen = false;
+            newline = false;
+            space = false;
+            redirect = false;
+
+        }
+
+        //If run into < or >
+        else if (c == '<' || c == '>')
+        {
+            if (newline || semicolon || lparen || pipe || and || or || redirect)
+            {
+                fprintf(stderr, "%d : Invalid syntax near <", line_count);
+                exit(1);
+            }
+
+            and = false;
+            semicolon = false;
+            lparen = false;
+            rparen = false;
+            newline = false;
+            space = false;
+            redirect = true;
+            pipe = false;
+            or = false;
+        }
+
+        //If run into (
+        else if (c == '(')
+        {
+            leftcount++;
+            lparen = true;
+            and = false;
+            semicolon = false;
+            rparen = false;
+            newline = false;
+            space = false;
+            redirect = true;
+            pipe = false;
+            or = false;
+        }
+
+        //If run into )
+        else if (c == ')')
+        {
+            if (and || or || pipe || lparen || redirect)
+            {
+                fprintf(stderr, "%d : Invalid syntax near )", line_count);
+                exit(1);
+            }
+
+            rightcount++;
+
+            if (rightcount > leftcount)
+            {
+                fprintf(stderr, "%d : Invalid syntax near )", line_count);
+                exit(1);
+            }
+
+            rparen = true;
+            and = false;
+            semicolon = false;
+            lparen = false;
+            newline = false;
+            space = false;
+            redirect = true;
+            pipe = false;
+            or = false;
+        }
+
+        else 
+        {
+            word = true;
+            rparen = false;
+            and = false;
+            semicolon = false;
+            lparen = false;
+            newline = false;
+            space = false;
+            redirect = true;
+            pipe = false;
+            or = false;
+        }
+
+        a[size] = c;
+        size++;
       }
-    while (c != EOF);
+        while (c!=EOF);
 
-    //enumerate the buffer
-    int index = 0;
-
-    enum parser_component  *enumerated_array = (enum parser_component*)malloc(sizeof(enum parser_component)*size);
-
-    //parser_component_t *enumerated_array = malloc(sizeof(parser_component)*size);
-    int z = 0;
-    
-    //convert buffer into enumerated buffer
-    while (z < size) 
-    {
-		if (z ==0)
-	  	{
-	    	if ((a[z] =='|' && a[z+1] == '|') ||(a[z] =='&' && a[z+1] == '&')) 
-	      	{
-				enumerated_array[index] = ANDOR;
-				z += 2;
-				index++;
-	      	}
-
-	      	if (a[z] == '|' && a[z+1] != '|')
-	      	{
-				enumerated_array[index] = PIPE;
-				z++;
-				index++;
-	      	}
-	  	}
-
-		if (z == size)
-	 	{
-	   		if ((a[z] =='|' && a[z-1] == '|') ||(a[z] =='&' && a[z-1] == '&'))
-	  		{
-	    		enumerated_array[index] = ANDOR;
-	    		z += 2;
-	    		index++;
-	  		}
-
-	  		if (a[z] == '|' && a[z-1] != '|')
-	    	{
-	      		enumerated_array[index] = PIPE;
-	      		z++;
-	      		index++;
-	    	}
-	 	}
-
-		if(z != 0 && z != size)
-	  	{
-	    	if (  (a[z] == '&' && a[z+1] =='&' ) || (a[z] == '|' && a[z+1] == '|') )
-	    	{
-	      		enumerated_array[index] = ANDOR;
-	      		z+=2;
-	      		index++;
-	    	}
-	    	else if ( a[z] == '|' && a[z-1] != '|' && a[z+1] !='|' )
-	    	{
-	      		enumerated_array[index] = PIPE;
-	      		z++;
-	      		index++;
-	    	}
-	    	else if(a[z] == ';')
-	    	{
-	    		enumerated_array[index] = SEMICOLON;
-	    		index++;
-	    		z++;
-	    	}
-	    	else if(a[z] == '#')
-	    	{
-                if (a[z-1] != ' ' || a[z-1] != '\t' || a[z-1] != '\n')
-                {
-                    enumerated_array[index] = ERROR;
-                }
-                else
-                {
-                    enumerated_array[index] = POUND;
-                }
-	    		index++;
-	    		z++;
-	    	}
-	    	else if(a[z] == '\n')
-	    	{
-	    		enumerated_array[index] = NEWLINE;
-	    		index++;
-	    		z++;
-	    	}
-	    	else if(a[z] == '<')
-	    	{
-	    		enumerated_array[index] = INPUT;
-	    		index++;
-	    		z++;
-	    	}
-	    	else if(a[z] == '>')
-	    	{
-	    		enumerated_array[index] = OUTPUT;
-	    		index++;
-	    		z++;
-	    	}
-        	else if(a[z] == '(')
-        	{
-            	enumerated_array[index] = INPUT;
-            	index++;
-           	 	z++;
-        	}
-        	else if(a[z] == ')')
-        	{
-            	enumerated_array[index] = OUTPUT;
-            	index++;
-            	z++;
-        	}
-          
-	    	else if(isalnum(a[z])==0 || (a[z] == '!') || (a[z] == '%') || (a[z] == '+') || (a[z] == ',') || (a[z] == '-') || (a[z] == '.') || (a[z] == '/') || (a[z] == ':') || (a[z] == '@') || (a[z] == '^') || (a[z] == '_'))
-	    	{
-            	while (!(isalnum(a[z])==0 || (a[z] == '!') || (a[z] == '%') || (a[z] == '+') || (a[z] == ',') || (a[z] == '-') || (a[z] == '.') || (a[z] == '/') || (a[z] == ':') || (a[z] == '@') || (a[z] == '^') || (a[z] == '_')))
-            	{
-                	z++;
-            	}
-            
-				enumerated_array[index] = WORD;
-				index++;
-	    	}
-        	else if (a[z] == ' ' || a[z] == '\t' )
-        	{
-            	//converts any sequence of spaces into one space enumeration
-            	while (a[z] == ' ' || a[z] == '\t' )
-            	{
-                	z++;
-            	}
-            	enumerated_array[index] = SPACE;
-            	index++;
-        	}
-	  	}
-    }
-    
-    
-	//Implement Error Checks for Enumerated Buffer
-    int line_count = 1;
-    int i = 0;
-    int leftcount = 0;
-    int rightcount = 0;
-    
-    
-    while (i < index)
-    {
-        if (rightcount > leftcount)
-        {
-            fprintf(stderr, "%d: No matching parentheses", line_count);
-        }
-        
-        while (i < index)
-        {
-            if ( enumerated_array[i] == ERROR )
-            {
-                fprintf(stderr, "%d : Invalid command", line_count);
-            }
-            
-            //First enumeration cannot be any of the following
-            if (i == 0)
-            {
-                if ( enumerated_array[i] == RPAREN )
-                {
-                    fprintf(stderr, "%d : Command cannot begin with )", line_count);
-                    exit(1);
-                }
-                
-                if ( enumerated_array[i] == SEMICOLON )
-                {
-                    fprintf(stderr, "%d : Command cannot begin with ;", line_count);
-                    exit(1);
-                }
-                
-                if ( enumerated_array[i] == ANDOR )
-                {
-                    fprintf(stderr, "%d : Command cannot begin with && or || ", line_count);
-                    exit(1);
-                }
-                
-                if ( enumerated_array[i] == PIPE )
-                {
-                    fprintf(stderr, "%d : Command cannot begin with |", line_count);
-                    exit(1);
-                }
-
-                
-                if ( enumerated_array[i] == INPUT )
-                {
-                    fprintf(stderr, "%d : Command cannot begin with <", line_count);
-                    exit(1);
-                }
-            }
-            
-            //Last enumeration cannot be any of the following
-            if (i == index - 1)
-            {
-                
-                //if (enumerated_array[i] == )
-                
-            }
-            
-        // Checks for Encountering ;
-            /*  1. cannot be surrounded by &&, ||, |
-                2. cannot have (, \n to the left of it
-                    --note that if there are spaces need to keep checking for next command on either side
-             */
-        
-        	enum parser_component left = ERROR;
-        	enum parser_component right = ERROR;
-        
-        	if ( enumerated_array[i] == SEMICOLON)
-        	{
-            	//Get command to left of ;
-            	int j = i;
-            	while (j >= 0)
-            	{
-                	if (enumerated_array[j] != SPACE)
-                	{
-                    left = enumerated_array[j];
-                    break;
-                	}
-                	j--;
-            	}
-            
-            	j = i;
-            
-            	//Get command to right of ;
-            	while (j < size)
-            	{
-                	if (enumerated_array[j] != SPACE   )
-                	{
-                    right = enumerated_array[j];
-                    break;
-                	}
-                	j++;
-            	}
-            
-            	//1
-            	if ( left == LPAREN || left == ANDOR || left == PIPE || left == NEWLINE || left == ERROR)
-            	{
-                  	fprintf(stderr, "%d : Syntax error near ;", line_count);
-                	exit(1);
-            	}
-            	//2
-            	if ( right ==  ANDOR || right == PIPE || right == ERROR)
-            	{
-                  	fprintf(stderr, "%d : Syntax error near ;", line_count);
-                	exit(1);
-            	}	
-            
-            
-        	}
-        
-        
-        	left = ERROR;
-        	right = ERROR;
-        	// Checks for Encountering && or ||
-            /* 1. MUST be surrounded by words
-                --Right side can have new lines until word, but left side cannot
-                --the exception is that left side can have ) and right side can have (
-             */
-        	if ( enumerated_array[i] == ANDOR)
-        	{
-            	//Get command to left of ;
-            	int j = i;
-            	while (j >= 0)
-            	{
-                	if (enumerated_array[j] != SPACE)
-                	{
-                    	left = enumerated_array[j];
-                    	break;
-                	}
-                	j--;
-            	}
-            
-            	j = i;
-            
-            	//Get command to right of ;
-            	while (j < size)
-            	{
-                	if (enumerated_array[j] != SPACE  && enumerated_array[j] != NEWLINE  )
-                	{
-                    right = enumerated_array[j];
-                    break;
-                	}
-                	j++;
-            	}
-            
-            	//1
-            	if ( left != WORD || right != WORD || left != RPAREN || right != LPAREN )
-            	{
-                  	fprintf(stderr, "%d : Syntax error near sequential command.", line_count);
-                	exit(1);
-            	}
-        	}
-        
-        
-        	left = ERROR;
-        	right = ERROR;
-        	// Checks for Encountering |
-        /*  1. left MUST be word or ), right MUST be word or (
-                --can check past newlines/spaces
-         
-         */
-        
-        
-       	 	if ( enumerated_array[i] == PIPE)
-        	{
-            	//Get command to left of ;
-            	int j = i;
-            	while (j >= 0)
-            	{
-                	if (enumerated_array[j] != SPACE && enumerated_array[j] != NEWLINE )
-                	{
-                    	left = enumerated_array[j];
-                    	break;
-                	}
-                	j--;
-            	}
-            
-            	j = i;
-            
-            	//get command to right of ;
-            	while (j < size)
-            	{
-                	if (enumerated_array[j] != SPACE  && enumerated_array[j] != NEWLINE  )
-                	{
-                    	right = enumerated_array[j];
-                    	break;
-                	}
-                	j++;
-            	}
-            
-            	//1
-            	if ( left != WORD || right != WORD || left != RPAREN || right != LPAREN)
-            	{
-                 	 fprintf(stderr, "%d : Syntax error near pipe command.", line_count);
-                	exit(1);
-            	}
-        	}
-        
-        // Checks for Encountering #
-        /*
-            1. can NOT have ordinary token immediately left of it ?? what is an ordinary token
-            2. right can be anything...is any comment until new line character
-         */
-        
-        /*
-        left = ERROR;
-        right = ERROR;
-        if (enumerated_array[i] == POUND)
-        {
-            if (i-1 >= 0)
-            {
-                left = enumerated_array[i-1];
-            }
-            
-            if (left == ANDOR || left == SEMICOLON || left == )
-            
-            
-        }
-        */
-        
-        
-        // Checks for Encountering \n
-        /*
-         None. A newline character can be anywhere
-         Increments the line counter
-         */
-            
-            if ( enumerated_array[i] == NEWLINE)
-            {
-                line_count++;
-            }
-            
-            left = ERROR;
-            right = ERROR;
-        // Checks for Encountering Input <
-        /*
-         1. cannot be surrounded by newlines, &&, ||, |, ;, <, > and can check for these past spaces
-         2. can have ) to the left of it or ( to the right of it
-        */
-        // Checks for Encountering Output >
-        /*
-            1. cannot be surrounded by newlines, &&, ||, |, ;, <, > and can check for these past spaces
-            2. can have ) to the left of it or ( to the right of it
-         */
-            
-            if ( enumerated_array[i] == OUTPUT || enumerated_array[i] == INPUT)
-            {
-                //Get command to left of ;
-                int j = i;
-                while (j >= 0)
-                {
-                    if (enumerated_array[j] != SPACE)
-                    {
-                        left = enumerated_array[j];
-                        break;
-                    }
-                    j--;
-                }
-                
-                j = i;
-                
-                //Get command to right of ;
-                while (j < size)
-                {
-                    if (enumerated_array[j] != SPACE )
-                    {
-                        right = enumerated_array[j];
-                        break;
-                    }
-                    j++;
-                }
-                
-                //1
-                if ( left == NEWLINE || left == ANDOR || left == PIPE || left == SEMICOLON || left == INPUT || left == OUTPUT || left != RPAREN || left == ERROR ||
-                    right == NEWLINE || right == ANDOR || right == PIPE || right == SEMICOLON || right == INPUT || right == OUTPUT || right != LPAREN || right == ERROR)
-                {
-                    fprintf(stderr, "%d : Syntax error I/O command.", line_count);
-                    exit(1);
-                }
-            }
-            
-        // Checks for Encountering (
-        /*
-         */
-            
-            if (enumerated_array[i] == LPAREN)
-            {
-                leftcount++;
-            }
-        // Checks for Encountering )
-        /*
-         */
-            if (enumerated_array[i]== RPAREN)
-            {
-                if (enumerated_array[i-1] == LPAREN)
-                {
-                    fprintf(stderr, "%d : Empty subshell", line_count);
-                }
-                rightcount++;
-            }
-        // Checks for Encountering Space
-        /*
-         */
-        // Checks for Encountering Word
-        /*
-         */
-        //INCREMENT COUNTER
-        }
-        i++;
-    }
-
-//At this point, the input has passed all tests, so it's valid, now need to process
-    
-    
-/*Process character buffer such that
-    ->&& becomes &
-    -> || becomes {
-    -> comments # are removed
-    -> The processed buffer follows the syntax Complete Command \n Complete Command \n Complete Command \n etc...
-*/
-    
-    process(a, size);
+      if (leftcount != rightcount)
+      {
+        fprintf(stderr, "%d : Invalid syntax near )", line_count);
+        exit(1);
+      }
 
 //create command trees
     operator_stack_t op_stack; 
@@ -1007,10 +681,8 @@ make_command_stream (int (*get_next_byte) (void *),
 	command_stack_t com_stack; 
 	com_init(&com_stack);
 
-	command_node_t new_node;
-	node_init(new_node); 
 
-	command_stream_t new_stream;
+	command_stream_t new_stream = (command_stream_t)malloc(sizeof(struct command_stream));
 	stream_init(new_stream);  
 
 
@@ -1027,13 +699,19 @@ make_command_stream (int (*get_next_byte) (void *),
       int zx = 0;
       while (zx < 100)
 	{
-	  cur_word[z] = (char*)malloc(sizeof(char)*100);
+	  cur_word[zx] = (char*)malloc(sizeof(char)*100);
+	  zx++;
 	}
       
       command_t temp_com;
 
-      while(a[x] != '\0')
+      while(a[x] != -1)
       {
+      	if(a[x] == ' ')
+      	{
+      		x++; 
+      	}
+
       	if(isalnum(a[x]) || (a[x] == '!') || 
       		(a[x] == '%') || (a[x] == '+')|| 
       		(a[x] == ',') || (a[x] == '-')|| 
@@ -1043,13 +721,14 @@ make_command_stream (int (*get_next_byte) (void *),
       	{
       		y = x; 
       		
-      		while((a[x] != '&') ||
-      		      (a[x] != '{') ||
-      		      (a[x] != '|' ) ||
-      		      (a[x] != ';' ) ||
-      		      (a[x] != '(' ) ||
-      		      (a[x] != ')' )  ) 
-      		{
+      		while((a[y] != '&') &&
+      		      (a[y] != '{') &&
+      		      (a[y] != '|' ) &&
+      		      (a[y] != ';' ) &&
+      		      (a[y] != '(' ) &&
+      		      (a[y] != ')' ) &&
+      		      (a[y] != -1  )  ) 
+      		{ 
       			y++; 
       		}
 
@@ -1061,16 +740,21 @@ make_command_stream (int (*get_next_byte) (void *),
       				while(a[x] == ' ')
       				{
       					x++; 
+
       				}
       				n++; 
+      				m = 0; 
       			}
-      			cur_word[n][m] = a[x];
-      			x++;
-      			m++;    
+      			if(x != y)
+      			{
+      				cur_word[n][m] = a[x];
+      				x++;
+      				m++;
+      			}    
       		}
 
-		command_t *tx = (command_t*)malloc(sizeof(command_t));
-		*tx = create_command(SIMPLE_COMMAND, NULL, NULL, cur_word, NULL );
+		command_t tx = (command_t)malloc(sizeof(struct command));
+		tx = create_command(SIMPLE_COMMAND, NULL, NULL, cur_word, NULL );
       		com_push(&com_stack, tx);
       		n = 0; 
       		m = 0;  
@@ -1108,7 +792,7 @@ make_command_stream (int (*get_next_byte) (void *),
       			q++;
       		}	
 
-		command_t * tz = (command_t*)malloc(sizeof(command_t));
+		command_t  *tz = (command_t*)malloc(sizeof(command_t));
 		tz = com_pop(&com_stack);
       		temp_com = *tz;
       		temp_com->input = direct_word; 
@@ -1134,26 +818,33 @@ make_command_stream (int (*get_next_byte) (void *),
       			x++;
       			q++;
       		}	
-		command_t * tz = (command_t*)malloc(sizeof(command_t));
+		command_t  *tz = (command_t*)malloc(sizeof(command_t));
 		tz = com_pop(&com_stack);
 		temp_com = *tz;
 		temp_com->input = direct_word;
 		com_push(&com_stack, &temp_com);
       	}
 
-      	if(a[x] == '\n')
+      	if(a[x] == '\n' || a[x] == -1)
       	{
       		finish_stack(&op_stack, &com_stack);
-      		new_node->root = com_pop(&com_stack);  
-      	}
+
+
+	command_node_t new_node = (command_node_t)malloc(sizeof(struct command_node));
+	node_init(new_node); 
+      		new_node->root = (command_t*)malloc(sizeof(command_t)); 
+      		new_node -> root = com_pop(&com_stack);  
+      	
 
       		if(new_stream->tail == NULL)
       		{
-      			new_stream->tail = new_node;	
+      			new_stream->tail = new_node;
+      			new_stream->tail->root--;
+      	
       		}
       		else
       		{
-		  new_stream->tail->next = new_node; 
+		  	  new_stream->tail->next = new_node; 
       		  new_stream->tail = new_stream->tail->next; 
       		}
       		 
@@ -1162,7 +853,8 @@ make_command_stream (int (*get_next_byte) (void *),
       		{
       			new_stream->head = new_stream->tail; 
       		}
-			x++;       		 
+
+      	}       		 
 			y = 0; 
     }
 
@@ -1183,8 +875,14 @@ command_t
 read_command_stream (command_stream_t s)
 {
   /* FIXME: Replace this with your implementation too.  */
-  error (1, 0, "command reading not yet implemented");
-  return 0;
+
+	command_t temp = s->cursor->root;
+	s->cursor = s->cursor->next; 
+
+	return temp; 
+
+  /*error (1, 0, "command reading not yet implemented");
+  return 0;*/
 }
 
 
