@@ -774,7 +774,7 @@ make_command_stream (int (*get_next_byte) (void *),
       int m = 0;
       int q = 0; 
 
-      char* direct_word=(char*)malloc(sizeof(char)*100);
+      //char* direct_word=(char*)malloc(sizeof(char)*100);
       char** cur_word = (char**)malloc(sizeof(char*)*100);
 
       int zx = 0;
@@ -786,7 +786,7 @@ make_command_stream (int (*get_next_byte) (void *),
       
       command_t temp_com = (command_t)malloc(sizeof(struct command));
 
-      while(a[x] != -1)
+      while(a[x] != -1 && a[x] != '\0')
       {
       	if(a[x] == ' ')
       	{
@@ -810,7 +810,8 @@ make_command_stream (int (*get_next_byte) (void *),
 		      (a[y] != '>' ) &&
 		      (a[y] != '<') &&
       		      (a[y] != ')' ) &&
-      		      (a[y] != -1  )  ) 
+      		      (a[y] != -1  ) &&
+      		      (a[y] != '\n') ) 
       		{ 
       			y++; 
       		}
@@ -912,7 +913,8 @@ make_command_stream (int (*get_next_byte) (void *),
 
       	if(a[x] == '<')
       	{
-	  x++;
+	  		x++;
+	  		char* direct_word=(char*)malloc(sizeof(char)*100);
       		while(a[x] == ' ')
       		{
       			x++; 
@@ -925,8 +927,12 @@ make_command_stream (int (*get_next_byte) (void *),
       			  a[x] != ' '  &&   
       			  a[x] != ')'  &&
       			  a[x] != '('  &&
-		          a[x] != '>' )
+		          a[x] != '>'  &&
+		          a[x] != '\n' &&
+		          a[x] != '\t' &&
+		          a[x] != -1    )
       		{
+      			
       			direct_word[q] = a[x];
       			x++;
       			q++;
@@ -935,14 +941,28 @@ make_command_stream (int (*get_next_byte) (void *),
 		command_t  tz = (command_t)malloc(sizeof(struct command));
 		tz = com_pop(com_stack);
       		temp_com = tz;
+
+      		char* temp_word = (char*)malloc(sizeof(char));
+			int Iter1 = 0; 
+			while(direct_word[Iter1] != '\0')
+			{
+				temp_word[Iter1] = direct_word[Iter1]; 
+				direct_word[Iter1] = '\0';
+				Iter1++;  
+			}
+
       		temp_com->input = (char*)malloc(sizeof(char)*100);
-      		temp_com->input = direct_word; 
-      		com_push(com_stack, temp_com); 
+      		temp_com->input = temp_word; 
+      		com_push(com_stack, temp_com);
+
+      	temp_word = NULL; 
+		q = 0;  
       	}
 
 	if(a[x] == '>')
       	{
 	  x++;
+	  char* direct_word=(char*)malloc(sizeof(char)*100);
       		while(a[x] == ' ')
       		{
       			x++; 
@@ -955,8 +975,12 @@ make_command_stream (int (*get_next_byte) (void *),
       			  a[x] != ' ' &&
       			  a[x] != ')' &&
       			  a[x] != '(' &&
-		          a[x] != '<' )
+		          a[x] != '<' &&
+		          a[x] != '\n'&&
+		          a[x] != '\t'&&
+		          a[x] != -1   )
       		{
+      			
       			direct_word[q] = a[x];
       			x++;
       			q++;
@@ -964,9 +988,24 @@ make_command_stream (int (*get_next_byte) (void *),
 		command_t  tz = (command_t)malloc(sizeof(struct command));
 		tz = com_pop(com_stack);
 		temp_com = tz;
-		temp_com->input = (char*)malloc(sizeof(char)*100);
-		temp_com->input = direct_word;
+			char* temp_word = (char*)malloc(sizeof(char));
+			int Iter1 = 0; 
+			
+			while(direct_word[Iter1] != '\0')
+			{
+				temp_word[Iter1] = direct_word[Iter1]; 
+				direct_word[Iter1] = '\0';
+				Iter1++;  
+			}
+
+
+		temp_com->output = (char*)malloc(sizeof(char)*100);
+		temp_com->output = temp_word;
 		com_push(com_stack, temp_com);
+
+		temp_word = NULL; 
+		q = 0; 
+
       	}
 
       	if(a[x] == '\n' || a[x] == -1)
@@ -1002,6 +1041,7 @@ make_command_stream (int (*get_next_byte) (void *),
       		{
                 new_stream->tail->next = (command_node_t)malloc(sizeof(struct command_node));
                 node_init(new_stream->tail->next);
+                new_stream->tail->next = new_node; 
                 new_stream->tail = new_stream->tail->next;
       		}
       		 
@@ -1012,6 +1052,8 @@ make_command_stream (int (*get_next_byte) (void *),
                 node_init(new_stream->head);
                 new_stream->head = new_stream->tail;
       		}
+
+      		x++; 
 
       	}       		 
       y = 0; 
