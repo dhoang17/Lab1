@@ -324,22 +324,22 @@ void handle_stack(operator_stack_t stacko, command_stack_t stackc)
 
 		if(*next_op == '|')
 		{
-			new_com = create_command(PIPE_COMMAND, com_1, com_2, NULL, NULL);
+			new_com = create_command(PIPE_COMMAND, com_2, com_1, NULL, NULL);
 			com_push(stackc, new_com); 			
 		}
 		if(*next_op == '&')
 		{
-			new_com = create_command(AND_COMMAND, com_1, com_2, NULL, NULL);
+			new_com = create_command(AND_COMMAND, com_2, com_1, NULL, NULL);
 			com_push(stackc, new_com);  
 		}
 		if(*next_op == '{')
 		{
-			new_com = create_command(OR_COMMAND, com_1, com_2, NULL, NULL);
+			new_com = create_command(OR_COMMAND, com_2, com_1, NULL, NULL);
 			com_push(stackc, new_com); 
 		}
 		if(*next_op == ';')
 		{
-			new_com = create_command(SEQUENCE_COMMAND, com_1, com_2, NULL, NULL); 
+			new_com = create_command(SEQUENCE_COMMAND, com_2, com_1, NULL, NULL); 
 			com_push(stackc, new_com); 
 		}
 		
@@ -372,22 +372,22 @@ void finish_stack(operator_stack_t stacko, command_stack_t stackc)
 
 		if(*cur_op == '|')
 		{
-			new_com = create_command(PIPE_COMMAND, com_1, com_2, NULL, NULL);
+			new_com = create_command(PIPE_COMMAND, com_2, com_1, NULL, NULL);
 			com_push(stackc, new_com); 			
 		}
 		if(*cur_op == '&')
 		{
-			new_com = create_command(AND_COMMAND, com_1, com_2, NULL, NULL);
+			new_com = create_command(AND_COMMAND, com_2, com_1, NULL, NULL);
 			com_push(stackc, new_com);  
 		}
 		if(*cur_op == '{')
 		{
-			new_com = create_command(OR_COMMAND, com_1, com_2, NULL, NULL);
+			new_com = create_command(OR_COMMAND, com_2, com_1, NULL, NULL);
 			com_push(stackc, new_com); 
 		}
 		if(*cur_op == ';')
 		{
-			new_com = create_command(SEQUENCE_COMMAND, com_1, com_2, NULL, NULL); 
+			new_com = create_command(SEQUENCE_COMMAND, com_2, com_1, NULL, NULL); 
 			com_push(stackc, new_com); 
 		}
 	
@@ -506,7 +506,7 @@ make_command_stream (int (*get_next_byte) (void *),
 	  //If run into comment, keep getting input until \n to ignore the comment out of buffer. Also, use !space to check for unordinary token
 	  else if (c == '#')
 	    {
-	      if (!space)
+	      if (!space && size != 0 && !newline)
 		{
 		  fprintf(stderr, "%d: Not an ordinary token before #", line_count);
 		  exit(1);
@@ -978,8 +978,19 @@ make_command_stream (int (*get_next_byte) (void *),
             command_node_t new_node = (command_node_t)malloc(sizeof(struct command_node));
             node_init(new_node);
       		new_node->root = (command_t)malloc(sizeof(struct command)); 
-      		new_node -> root = com_pop(com_stack);  
-      	
+      		new_node -> root = com_pop(com_stack);
+
+      		/*while(new_node->root->u.command[0]->type != SIMPLE_COMMAND && new_node->root->u.command[1]->type != SIMPLE_COMMAND)
+      		{
+      			if(new_node->root->u.command[0]->type != SIMPLE_COMMAND)
+      			{
+      				new_node->root = new_node->root->u.command[0]; 
+      			}
+      			else if(new_node->root->u.command[1]->type != SIMPLE_COMMAND)
+      			{
+      				new_node->root = new_node->root->u.command[1]; 
+      			}  
+      		}*/
 
       		if(new_stream->tail == NULL)
       		{
