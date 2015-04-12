@@ -2,3 +2,62 @@ This is a skeleton for CS 111 Lab 1.
 
 Replace this README file with notes on your implementation.
 Mentions any special features or limitations.
+
+CS LAB 1 Part A
+Mrinal Chawla - 
+Dylan Hoang - 604268191
+
+The file read-command.c is divided into two main functions make_command_stream and read_command_stream.
+
+Make_command_stream takes in user input, and produces a linked list of pointers to 
+command trees. 
+
+Read_command_stream traverses this linked list, returning one command tree
+at a time for the program’s print function.
+
+Make_command_stream is divided into two parts.
+
+The first part constructs a valid buffer while error checking. If the program passes this
+first part, that means all checks have been validated, and the program can proceed to construct
+the linked list.
+
+	The buffer is constructed by using the get_next_byte function to receive one character at a 
+	time. For error checking, the function uses a multitude of bool flags and index placeholders
+	to check if certain characters can correctly follow others etc.
+
+	Specific attention here should be called to the handling of newline characters. If there was one
+	it was to be replaced with the sequential command ;, but if there was a sequence it was to be replaced
+	with a \n. Finally, if these were at the start or end of the file, nothing was to be added.
+
+	Also, since the second part requires all operators to be of length single character, this buffer
+	construction algorithm replaces || with { and removes repetitive whitespace and only includes
+	significant newlines. 
+
+The second part uses the constructed buffer to construct the linked list of command trees.
+
+	The algorithm used here is a modified version of the infix to postfix algorithm used for handling
+	operator precedence. There are two stacks, a command and an operator stack. Here is the pseudocode
+	of the algorithm, provided by the TA:
+	
+**Note that a simple command in this lab is any contiguous sequence of valid characters as defined in spec. 
+1. If a simple command push it onto command-stack
+2. If it’s a "(", push it onto the operator stack
+3. If it's an operator and operator stack is empty
+	a. Push the operator onto operator stack
+4. If it's an operator and operator stack isn't empty
+	a. Pop all operators with greater or equal precedence off the operator stack. For each operator, 
+	   pop 2 commands off the command stack. Combine into new command. Push it onto command stack.
+	b. Stop when reaching an operator with lower precedence or a "("
+	c. Push new operator onto operator stack
+5. If encounter ")," pop operators off (similar to 4a) until a matching "(." Create a subshell command by popping off
+   top command  on command stack.
+
+Go Back to #1
+
+Special Notes:
+-program only needs to traverse the user input twice. Once to create a valid buffer and error check, and another time, 
+traversing that buffer to produce a valid linked list of trees. 
+-the stack algorithm required reference from groups.csail.mit.edu/graphics/classes/6.837/F04/cpp_notes/stack1.html
+Limitations:
+every string of word commands is limited by 100 in length
+the stack size of the commands and operators is limited to 100 in length

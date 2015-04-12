@@ -1,16 +1,3 @@
-/*
- TODO
- 
- deal with comments
- 
- 
- */
-
-
-
-
-
-
 // UCLA CS 111 Lab 1 command reading
 
 #include "command.h"
@@ -20,28 +7,12 @@
 #include <error.h>
 #include <string.h>
 #include <stdlib.h>
-/* FIXME: You may need to add #include directives, macro definitions,
-   static function definitions, etc.  */
-
-/* FIXME: Define the type 'struct command_stream' here.  This should
-   complete the incomplete type declaration in command.h.  */
-
-
-
-
-
-
-
-
-
 
 ///////////BEGIN STACK DEFINITION////////////////
 
 #define STACK_SIZE 100
 
-//start operator stack    
-//typedef struct operator_stack *operator_stack_t;
-
+//Definition of operator stack
 typedef struct operator_stack *operator_stack_t;
 
 struct operator_stack
@@ -49,8 +20,8 @@ struct operator_stack
 	char* data[STACK_SIZE];
 	int top;
 };
-//typedef struct operator_stack operator_stack_t; 
 
+//Constructor
 void op_init(operator_stack_t stack)
 {
 	int i = 0; 
@@ -62,7 +33,7 @@ void op_init(operator_stack_t stack)
 	stack->top = 0; 
 }
 
-
+//Pop
 char* op_pop(operator_stack_t stack)
 {
 	
@@ -81,11 +52,11 @@ char* op_pop(operator_stack_t stack)
 
 }
 
+//Push
 int op_push(operator_stack_t stack, char* val)
 {
 	if(stack->top == STACK_SIZE)
 	{
-		//printf "Stack full";
 		return 0; 
 	}
 	else
@@ -97,6 +68,7 @@ int op_push(operator_stack_t stack, char* val)
 	return 1; 
 }
 
+//IsEmpty
 int op_empty(operator_stack_t stack)
 {
 	if(stack->top == 0)
@@ -108,7 +80,9 @@ int op_empty(operator_stack_t stack)
 //end operator stack
 
 //start command stack
- 
+
+
+//Command Stack Definition
 typedef struct command_stack *command_stack_t;
 
 struct command_stack
@@ -118,6 +92,7 @@ struct command_stack
 };
 
 
+//Constructor
 void com_init(command_stack_t stack)
 {
 	int i = 0; 
@@ -130,11 +105,9 @@ void com_init(command_stack_t stack)
 	stack->top = 0; 
 }
 
+//Pop
 command_t com_pop(command_stack_t stack)
 {
-	//command_t return_val;
-	//command_t return_val = (command_t)malloc(sizeof(struct command)); 
-
 	if (stack->top == 0)
 	{
 		return NULL;
@@ -150,11 +123,11 @@ command_t com_pop(command_stack_t stack)
 	 
 }
 
+//Push
 int com_push(command_stack_t stack, command_t val)
 {
 	if(stack->top == STACK_SIZE)
 	{
-		//printf "Stack full";
 		return 0; 
 	}
 	else
@@ -165,6 +138,7 @@ int com_push(command_stack_t stack, command_t val)
 	return 1; 
 }
 
+//IsEmpty
 int com_empty(command_stack_t stack)
 {
 	if(stack->top == 0){
@@ -177,6 +151,8 @@ int com_empty(command_stack_t stack)
 //////////END STACK DEFINITION////////////
 //Reference: groups.csail.mit.edu/graphics/classes/6.837/F04/cpp_notes/stack1.html
 
+
+//Get precedence of character
 int get_precedence(char* op)
 {
 	//|, ||/&&, ;/\n
@@ -207,6 +183,8 @@ int get_precedence(char* op)
 
 }
 
+//Create the command
+//Since it's a union, you can only alter the variable that is not null
 command_t create_command(enum command_type type, command_t child_1, command_t child_2, char** word, command_t subshell)
 {
         command_t return_val = (command_t)malloc(sizeof(struct command));
@@ -272,8 +250,7 @@ command_t create_command(enum command_type type, command_t child_1, command_t ch
 
 }
 
-
-
+//Postfix->Infix Algorithm
 void handle_stack(operator_stack_t stacko, command_stack_t stackc)
 {
 	if(op_empty(stacko))
@@ -357,6 +334,7 @@ void handle_stack(operator_stack_t stacko, command_stack_t stackc)
 	  }
 }
 
+//Postfix Infix Algorithm
 void finish_stack(operator_stack_t stacko, command_stack_t stackc)
 {
 	char* cur_op = (char*)malloc(sizeof(char)); 
@@ -394,16 +372,16 @@ void finish_stack(operator_stack_t stacko, command_stack_t stackc)
 	}
 }
 
-
+//Command_node Declaration (this is a command tree
 typedef struct command_node *command_node_t;
 
-//command tree
 struct command_node
 {
   command_t root; 
   command_node_t next;
 };
 
+//Constructor
 void node_init(command_node_t node)
 {
 	node->root = NULL; 
@@ -411,7 +389,7 @@ void node_init(command_node_t node)
 }
 
 
-//linked list of command nodes
+//linked list of command nodes declaration
 struct command_stream
 {
   command_node_t head;
@@ -419,6 +397,7 @@ struct command_stream
   command_node_t cursor;
 };
 
+//constructor
 void stream_init(command_stream_t stream)
 {
     stream->head = NULL;
@@ -426,6 +405,8 @@ void stream_init(command_stream_t stream)
     stream->cursor = NULL;
     
 }
+
+//Helper functions for error checking
 
 bool valid_char(char c)
 {
@@ -444,6 +425,8 @@ command_stream_t
 make_command_stream (int (*get_next_byte) (void *),
     	     void *get_next_byte_argument)
 {
+    
+/*PART 1 -> ERROR CHECK & MAKE BUFFER */
     
  //Make the buffer
   char *a = (char*)malloc(sizeof(char) * 1000);
@@ -825,8 +808,11 @@ make_command_stream (int (*get_next_byte) (void *),
 	}
       while (c!=EOF);
 
-//create command trees
-      operator_stack_t op_stack = (operator_stack_t)malloc(sizeof(struct operator_stack)); 
+    
+/*PART 2 - MAKE LINKED LIST OF COMMAND TREES */
+    
+
+    operator_stack_t op_stack = (operator_stack_t)malloc(sizeof(struct operator_stack));
 	op_init(op_stack); 
 
 	command_stack_t com_stack = (command_stack_t)malloc(sizeof(struct command_stack)); 
@@ -836,15 +822,12 @@ make_command_stream (int (*get_next_byte) (void *),
 	command_stream_t new_stream = (command_stream_t)malloc(sizeof(struct command_stream));
 	stream_init(new_stream);  
 
-
-
       int x = 0;
       int y = 0;
       int n = 0;
       int m = 0;
       int q = 0; 
 
-      //char* direct_word=(char*)malloc(sizeof(char)*100);
       char** cur_word = (char**)malloc(sizeof(char*)*100);
 
       int zx = 0;
@@ -1089,18 +1072,6 @@ make_command_stream (int (*get_next_byte) (void *),
       		new_node->root = (command_t)malloc(sizeof(struct command)); 
       		new_node -> root = com_pop(com_stack);
 
-      		/*while(new_node->root->u.command[0]->type != SIMPLE_COMMAND && new_node->root->u.command[1]->type != SIMPLE_COMMAND)
-      		{
-      			if(new_node->root->u.command[0]->type != SIMPLE_COMMAND)
-      			{
-      				new_node->root = new_node->root->u.command[0]; 
-      			}
-      			else if(new_node->root->u.command[1]->type != SIMPLE_COMMAND)
-      			{
-      				new_node->root = new_node->root->u.command[1]; 
-      			}  
-      		}*/
-
       		if(new_stream->tail == NULL)
       		{
                 new_stream->tail = (command_node_t)malloc(sizeof(struct command_node));
@@ -1131,14 +1102,7 @@ make_command_stream (int (*get_next_byte) (void *),
 
       new_stream->cursor = (command_node_t)malloc(sizeof(struct command_node));
 	  new_stream->cursor = new_stream->head;
-      return new_stream; 
-
-	      
-  /* FIXME: Replace this with your implementation.  You may need to
-     add auxiliary functions and otherwise modify the source code.
-     You can also use external functions defined in the GNU C Library.  */
-  //error (1, 0, "command reading not yet implemented");
-  //return 0;
+      return new_stream;
 }
 
 
@@ -1146,7 +1110,7 @@ make_command_stream (int (*get_next_byte) (void *),
 command_t
 read_command_stream (command_stream_t s)
 {
-  /* FIXME: Replace this with your implementation too.  */
+  /* Traversal of linked list  */
 	if(s->cursor == NULL)
 	{
 		return NULL; 
@@ -1160,9 +1124,6 @@ read_command_stream (command_stream_t s)
 		s->cursor = s->cursor->next;
 		return temp; 
 	}
-
-  /*error (1, 0, "command reading not yet implemented");
-  return 0;*/
 }
 
 
