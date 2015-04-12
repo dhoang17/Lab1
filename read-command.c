@@ -509,11 +509,45 @@ make_command_stream (int (*get_next_byte) (void *),
 			    }
 			  while ( c!= '\n');
 
-			  if (converted)
-			    {
-			      continue;
-			    }
-			  tempindex2 = size;
+            if ( and || or || pipe || converted )
+            {
+                continue;
+            }
+            
+            if (leftcount != rightcount)
+            {
+                fprintf(stderr, "%d: Mismatched Parentheses", line_count);
+                exit(1);
+            }
+            
+            if (semicolon)
+            {
+                a[tempindex] = ' ';
+            }
+            
+            
+            if (newline)
+            {
+                a[tempindex2] = ' ';
+                if (initialword)
+                {
+                    c = '\n';
+                }
+                else
+                {
+                    c = ' ';
+                }
+                
+                converted = true;
+            }
+            
+            else
+            {
+                tempindex2 = size;
+                c = ';';
+                converted = false;
+            }
+			  
 			  word = false;
 			  space = false;
 			  and = false;
@@ -524,7 +558,6 @@ make_command_stream (int (*get_next_byte) (void *),
 			  semicolon = false;
 			  pipe = false;
 			  redirect = false;
-			  converted = false;
 	    }
 
 	  /*If run into new line, 
