@@ -465,6 +465,10 @@ make_command_stream (int (*get_next_byte) (void *),
   bool redirect = false;
   bool word = false;
 
+  bool converted = false;
+  bool initialword = false;
+  int tempindex;
+  int tempindex2;
   int leftcount = 0;
   int rightcount = 0;
 
@@ -511,30 +515,48 @@ make_command_stream (int (*get_next_byte) (void *),
 		  fprintf(stderr, "%d: Not an ordinary token before #", line_count);
 		  exit(1);
 		}
-
+	      if (newline)
+		{
+		  a[tempindex2] = ' ';
+		}
+	      
 	                  do
 			    {
 			      c = get_next_byte(get_next_byte_argument);
 			    }
 			  while ( c!= '\n');
 
+			  if (converted)
+			    {
+			      continue;
+			    }
+			  tempindex2 = size;
 			  word = false;
 			  space = false;
 			  and = false;
 			  or = false;
-			  newline = false;
+			  newline = true;
 			  lparen = false;
 			  rparen = false;
 			  semicolon = false;
 			  pipe = false;
 			  redirect = false;
-			  continue;
+			  converted = false;
 	    }
 
-	  //If run into new line, increment line counter, also ignore consecutive newline characters, also accounts for & \n case, can't be preceded by < or >
-	  else if (c == '\n')
-	    {
-	      
+	  /*If run into new line, 
+	    -increment line count
+	    - if preceded by & or |, don't add to buffer
+	    -parentheses need to match up if &/|/|| not preceding it
+	    - can't be preceded by < or >
+	    -if preceded by semicolon, remove it
+	   -add a semicolon
+	   -if just ran into newline, convert that semicolon to a newline char
+	   -if just converted newline char, skip
+	 
+	   */
+	 else if (c == '\n')
+	    {  
 	      if (redirect)
 		{
 		  fprintf(stderr, "%d: Error near redirect", line_count);
@@ -543,7 +565,7 @@ make_command_stream (int (*get_next_byte) (void *),
 
 	      line_count++;
 
-	      if (newline || and || or || pipe )
+	      if ( and || or || pipe || converted )
 		{
 		  continue;
 		}
@@ -554,6 +576,36 @@ make_command_stream (int (*get_next_byte) (void *),
 		  exit(1);
 		}
 
+	      if (semicolon)
+		{
+		  a[tempindex] = ' ';
+		}
+
+
+	      if (newline)
+		{
+		  a[tempindex2] = ' ';
+		  if (initialword)
+		    {
+		      c = '\n';
+		    }
+		  else
+		    {
+		      c = ' ';
+		    }
+		 
+		  converted = true;
+		}
+
+	      else
+		{
+		  tempindex2 = size;
+		  c = ';';
+		  converted = false;
+		}
+
+
+	      
 	      word = false;
 	      space = false;
 	      and = false;
@@ -577,6 +629,8 @@ make_command_stream (int (*get_next_byte) (void *),
 		  exit(1);
 		}
 
+	      tempindex = size;
+
 	      space = false;
 	      and = false;
 	      or = false;
@@ -587,6 +641,7 @@ make_command_stream (int (*get_next_byte) (void *),
 	      pipe = false;
 	      redirect = false;
 	      word = false;
+	      converted = false;
 	    }
 
 	  //If run into &, can't have ; or ( to left of it or | to left of it
@@ -617,6 +672,7 @@ make_command_stream (int (*get_next_byte) (void *),
 	      pipe = false;
 	      redirect = false;
 	      word = false;
+	      converted = false;
 	    }
 
 	  //If run into |, can't have ; or ( to left of it, makes || into {
@@ -643,6 +699,7 @@ make_command_stream (int (*get_next_byte) (void *),
 		}
 
 	      and = false;
+	      converted = false;
 	      semicolon = false;
 	      lparen = false;
 	      rparen = false;
@@ -663,6 +720,7 @@ make_command_stream (int (*get_next_byte) (void *),
 		}
 
 	      and = false;
+	      converted = false;
 	      semicolon = false;
 	      lparen = false;
 	      rparen = false;
@@ -677,6 +735,7 @@ make_command_stream (int (*get_next_byte) (void *),
 	  //If run into (
 	  else if (c == '(')
 	    {
+	      converted = false;
 	      leftcount++;
 	      lparen = true;
 	      and = false;
@@ -708,6 +767,7 @@ make_command_stream (int (*get_next_byte) (void *),
 		}
 
 	      rparen = true;
+	      converted = false;
 	      and = false;
 	      semicolon = false;
 	      lparen = false;
@@ -721,7 +781,15 @@ make_command_stream (int (*get_next_byte) (void *),
 
 	  else if (c == EOF)
 	    {
-	      
+	      if (semicolon)
+		{
+		  a[tempindex] = ' ';
+		}
+
+	      if (newline)
+		{
+		  a[tempindex2] = ' ';
+		}
 	      if (and || lparen || redirect || pipe || or )
 		{
 		  fprintf(stderr, "%d : Invalid syntax near end of file", line_count);
@@ -738,6 +806,7 @@ make_command_stream (int (*get_next_byte) (void *),
 	    }
 	  else
 	    {
+	      converted = false;
 	      word = true;
 	      rparen = false;
 	      and = false;
@@ -748,6 +817,7 @@ make_command_stream (int (*get_next_byte) (void *),
 	      redirect = false;
 	      pipe = false;
 	      or = false;
+	      initialword = true;
 	    }
 
 	  a[size] = c;
@@ -818,10 +888,10 @@ make_command_stream (int (*get_next_byte) (void *),
 
       		while(x != y)
       		{
-      			if(a[x] == ' ' || a[x] == '\n')
+      			if(a[x] == ' ')
       			{
 
-      				while(a[x] == ' '|| a[x] == '\n')
+      				while(a[x] == ' ')
       				{
       					x++; 
 
