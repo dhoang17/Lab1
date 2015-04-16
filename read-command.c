@@ -293,28 +293,40 @@ void handle_stack(operator_stack_t stacko, command_stack_t stackc)
 	command_t com_1 = (command_t)malloc(sizeof(struct command)); 
 	command_t com_2 = (command_t)malloc(sizeof(struct command)); 
        
-	while(get_precedence(next_op) >= get_precedence(cur_op))
+	while(get_precedence(next_op) >= get_precedence(cur_op) && cur_op != NULL)
 	{
 	  
 		com_1 = com_pop(stackc); 
 		com_2 = com_pop(stackc); 
 
-		if(*next_op == '|')
+		if(*next_op == '(' && *cur_op == ')')
+		{
+	  		new_com =  create_command(SUBSHELL_COMMAND, NULL, NULL, NULL, com_1);
+	  		com_push(stackc, new_com);
+	  		next_op = NULL;
+	  		cur_op = NULL;
+	  		if(com_2 != NULL)
+	  		{
+	  			com_push(stackc, com_2); 
+	  		}  
+		}
+
+		if(next_op != NULL && *next_op == '|')
 		{
 			new_com = create_command(PIPE_COMMAND, com_2, com_1, NULL, NULL);
 			com_push(stackc, new_com); 			
 		}
-		if(*next_op == '&')
+		if(next_op != NULL && *next_op == '&')
 		{
 			new_com = create_command(AND_COMMAND, com_2, com_1, NULL, NULL);
 			com_push(stackc, new_com);  
 		}
-		if(*next_op == '{')
+		if(next_op != NULL && *next_op == '{')
 		{
 			new_com = create_command(OR_COMMAND, com_2, com_1, NULL, NULL);
 			com_push(stackc, new_com); 
 		}
-		if(*next_op == ';')
+		if(next_op != NULL && *next_op == ';')
 		{
 			new_com = create_command(SEQUENCE_COMMAND, com_2, com_1, NULL, NULL); 
 			com_push(stackc, new_com); 

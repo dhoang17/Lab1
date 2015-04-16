@@ -4,7 +4,7 @@ Replace this README file with notes on your implementation.
 Mentions any special features or limitations.
 
 CS LAB 1 Part A
-Mrinal Chawla - 
+Mrinal Chawla - 004273708
 Dylan Hoang - 604268191
 
 The file read-command.c is divided into two main functions make_command_stream and read_command_stream.
@@ -37,22 +37,43 @@ The second part uses the constructed buffer to construct the linked list of comm
 
 	The algorithm used here is a modified version of the infix to postfix algorithm used for handling
 	operator precedence. There are two stacks, a command and an operator stack. Here is the pseudocode
-	of the algorithm, provided by the TA:
-	
-**Note that a simple command in this lab is any contiguous sequence of valid characters as defined in spec. 
-1. If a simple command push it onto command-stack
-2. If it’s a "(", push it onto the operator stack
-3. If it's an operator and operator stack is empty
-	a. Push the operator onto operator stack
-4. If it's an operator and operator stack isn't empty
-	a. Pop all operators with greater or equal precedence off the operator stack. For each operator, 
-	   pop 2 commands off the command stack. Combine into new command. Push it onto command stack.
-	b. Stop when reaching an operator with lower precedence or a "("
-	c. Push new operator onto operator stack
-5. If encounter ")," pop operators off (similar to 4a) until a matching "(." Create a subshell command by popping off
-   top command  on command stack.
+	of the algorithm:
 
-Go Back to #1
+	Two stacks are created. One holds the char value of operators, which are definied as ;,
+	&&, ||, |, (, ). These operators are assigned a precedence value. | has the highest
+	precedence. &&, || have equal precedence less than |. ; has the lowest precedence. 
+	NOTE: When the stack is handling the operators, all operators are represented with
+	a single char. && is represented as & and || is represented as {. The second stack
+	holds command structs of simple commands. When the algorithm runs into a character
+	that is not an operator, there are several steps it can take. If it is a redirection
+	operator ( < or >) the top command in the command stack is assigned an output or input
+	value as appropriate. If it is word, then a 2 dimensonal array of characters is
+	generated (each word following is added to the array until an operator is found). 
+	This array is used to generate a simple command, which is pushed onto the command 
+	stack. If it is a space, the character is ignored. If it is a newline or an EOF
+	character, a node is generated (More details below). If the algorithm finds an operator
+	then a stack handling function is called. This function pops off all operators off the
+	operator stack which have higher precedence then the current operator. For each operator
+	popped, two commands are popped. These commands are used to generate an operator specific
+	command, and are assigned as the children to the operator command. This command is then 
+	pushed onto the command stack. Once the top operator on the stack has a lower precedence 
+	than the current operator, or the stack is empty, then the current operator is pushed. 
+	There are some special cases. If the current operator is a (, then it is pushed onto 
+	the operator stack. If it is a ) then operators are popped until a matching ( is found. 
+	The same two command pop process is followed. Once the stack is handled, the function
+	returns. After a newline is found in the input, then a new node is created. This
+	involves calling a function called finish_stack which consolidates whatever is left
+	on the two stacks into a single command. This command is then set as the root of the 
+	node. The node is then added to the command stream, which is a linked list of command 
+	nodes (each node has a pointer to the next). Once the entire input has been processed, 
+	The stream that is generated is returned. 
+	
+	When processing this stream, the members of the stream are used extensively. A cursor
+	is assigned at the head of the stream. Every time read_command_stream is called, the
+	root of the node which the cursor points to is returned. Then the cursor is incremented 
+	to the next node. At the end, the cursor is set to NULL. 
+
+
 
 Special Notes:
 -program only needs to traverse the user input twice. Once to create a valid buffer and error check, and another time, 
