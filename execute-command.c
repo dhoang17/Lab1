@@ -4,7 +4,7 @@
 #include "command-internals.h"
 
 #include <error.h>
-
+#include <fcntl.h>
 //Added directives
 #include<sys/wait.h>
 #include<unistd.h>
@@ -208,6 +208,7 @@ void execute_pipe(command_t c)
 
 void execute_simple(command_t c)
 {
+  
   pid_t p = fork();
 
   if (p < 0 )
@@ -217,14 +218,39 @@ void execute_simple(command_t c)
 
   if (p == 0)
     {
-      if ( strcmp(c->u.word[0], "exec") == 0)
-	{
-	  execvp(c->u.word[1],&c->u.word[1]);
-	}
-      else
-	{
-	  execvp(c->u.word[0],c->u.word);
-	}
+      	
+    	if (c->input != NULL)
+		{
+		
+			int fd = open( c->input , O_RDONLY, 0644); 
+			 
+			if(fd < 0)
+			{
+				error(1, 0, "file i/o error"); 
+			}
+
+			dup2(fd, STDIN_FILENO);  	
+		}
+		 if(c->output != NULL)
+		 {
+		 	int fd = open (c->output , O_CREAT|O_TRUNC|O_WRONLY); 
+		 	if(fd < 0)
+		 	{
+		 		error(1,0,"file i/o error"); 
+		 	}
+
+		 	dup2(fd, STDOUT_FILENO); 
+		 }
+
+      	if ( strcmp(c->u.word[0], "exec") == 0)
+		{
+	  		execvp(c->u.word[1],&c->u.word[1]);
+		}
+      	else
+		{
+	  		execvp(c->u.word[0],c->u.word);
+		}
+
     }
 
   else
@@ -259,6 +285,14 @@ execute_command (command_t c, bool time_travel)
     execute_simple(c);
     break;
   case SUBSHELL_COMMAND:
+  	if(c->input != NULL)
+  	{
+  		c->u.subshell_command->input = c->input; 
+  	}
+  	if(c->output != NULL)
+  	{
+  		c->u.subshell_command->output = c->output; 
+  	}
     execute_command(c->u.subshell_command, false);
     break;
   default:
