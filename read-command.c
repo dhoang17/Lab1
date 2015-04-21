@@ -651,7 +651,7 @@ make_command_stream (int (*get_next_byte) (void *),
 	  else if (c ==';')
 	    {
 
-	      if ( (semicolon || lparen || and || or || newline || pipe || redirect) || !word )
+	      if ( (semicolon || lparen || and || or || newline || pipe || redirect) || !(word||rparen) )
 		{
 		  fprintf(stderr, "%d : Invalid syntax near ;", line_count);
 		  exit(1);
@@ -676,7 +676,7 @@ make_command_stream (int (*get_next_byte) (void *),
 	  //Need to convert && to & and can't have &&&
 	  else if (c == '&')
 	    {
-	      if ( (semicolon || lparen || and || or || pipe || redirect || newline) || !word )
+	      if ( (semicolon || lparen || and || or || pipe || redirect || newline) || !(word||rparen) )
 		{
 		  fprintf(stderr, "%d : Invalid syntax near sequential command", line_count);
 		  exit(1);
