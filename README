@@ -3,7 +3,7 @@ This is a skeleton for CS 111 Lab 1.
 Replace this README file with notes on your implementation.
 Mentions any special features or limitations.
 
-CS LAB 1 Part A
+CS LAB 1 Part B
 Mrinal Chawla - 004273708
 Dylan Hoang - 604268191
 
@@ -74,6 +74,22 @@ The second part uses the constructed buffer to construct the linked list of comm
 	to the next node. At the end, the cursor is set to NULL. 
 
 
+execute-command.c:
+
+This file's implementation allows for the execution of commands. There is a switch statement in the main
+function, which checks each command's type. If the command is a simple command, it orchastrates a call to
+execvp which will execute the command. If the command is an operator, the function recursively calls itself
+on the children of the command in order to traverse the command tree. There are also some error checks
+implemented, which deal with the errors of forking processes and aliasing stdin and stdout for i/o 
+redirection. Also, logic is checked as well. For example, if the left side of an && command failes to execute
+then the right side is not executed. If the left side of an || command executes, then the right side is not 
+executed. A sequence command uses the blocking implementation of waitpid to execute from right to left. A 
+pipe command uses dup2 twice to set up the i/o correctly. The final version of the project is made to mimic
+the behaviour of the sh command. 
+
+
+
+
 
 Special Notes:
 -program only needs to traverse the user input twice. Once to create a valid buffer and error check, and another time, 
@@ -82,3 +98,5 @@ traversing that buffer to produce a valid linked list of trees.
 Limitations:
 every string of word commands is limited by 100 in length
 the stack size of the commands and operators is limited to 100 in length
+does not handle subshell precedence like sh command does.
+

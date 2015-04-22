@@ -10,9 +10,6 @@
 #include<unistd.h>
 #include<string.h>
 
-/* FIXME: You may need to add #include directives, macro definitions,
-   static function definitions, etc.  */
-
 //TODO: i/o cases
 int
 command_status (command_t c)
@@ -74,10 +71,10 @@ void execute_sequence(command_t c)
       error(1,0,"fork error.");
     }
 
-  //If in child process, execute child -> executes command on right
+  //If in child process, execute child -> executes command on left
   if (p == 0)
     {
-      //Execute command on the right
+      //Execute command on the left
       execute_command(c->u.command[0], false);
 
       //Set status of internal command
@@ -85,9 +82,14 @@ void execute_sequence(command_t c)
     }
 
   //This block is executed by parent process, which
-  //executes the command on left
+  //executes the command on right
   else
     {
+       
+      int status;
+      waitpid(p, &status, 0);
+      int exit_status = WEXITSTATUS(status);
+
        execute_command(c->u.command[1], false);
        _exit(c->u.command[1]->status);
        c->status =WEXITSTATUS( c->u.command[1]->status);
@@ -233,7 +235,7 @@ void execute_simple(command_t c)
 		}
 		 if(c->output != NULL)
 		 {
-		 	int fd = open (c->output , O_CREAT|O_TRUNC|O_WRONLY); 
+		 	int fd = open (c->output , O_CREAT|O_TRUNC|O_WRONLY, 0644); 
 		 	if(fd < 0)
 		 	{
 		 		error(1,0,"file i/o error"); 
