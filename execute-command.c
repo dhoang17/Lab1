@@ -56,7 +56,7 @@ void execute_and(command_t c)
       else
 	{
 	 	  execute_command(c->u.command[1], false);
-		  _exit(c->u.command[1]->status);
+		  //_exit(c->u.command[1]->status);
 	      c->status = WEXITSTATUS(c->u.command[1]->status);
 	 }	
     }
