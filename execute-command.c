@@ -533,6 +533,74 @@ dependency_graph create_graph(command_stream_t s)
     return return_val;
 }
 
+int execute_graph(dependency_graph_t graph)
+{
+	execute_no_dependencies(graph -> no_dependency);
+	execute_dependencies(graph->dependency);
+}
+
+void execute_no_dependencies(graph_node_t* no_deps)
+{	
+	int x = 0
+	while(no_deps[x] != NULL)
+	{
+		graph_node_t cur_node =no_deps[x]; 
+		pid_t cur_pid = fork(); 
+		if(cur_pid == 0)
+		{
+			execute_command(cur_node->command, true);
+			_exit(cur_node->command->status); 
+		}
+		else
+		{
+			cur_node->pid = cur_pid; 
+		}
+		x++; 
+	}
+	return; 
+}
+
+
+void execute_dependencies(graph_node_t* deps)
+{
+	int x = 0; 
+	while(deps[x] != NULL)
+	{
+		graph_node_t cur_node = deps[x]; 
+		
+		loop_label:
+		int i = 0; 
+		while(cur_node->before_list[i] != NULL)
+		{
+			if(cur_node->before_list[i]->pid == -1)
+			{
+				goto loop_label; 
+			}
+			i++; 
+		}
+		int status; 
+		i = 0; 
+		while(cur_node->before_list[i] != NULL)
+		{
+			waitpid(cur_node->before_list[i]->pid, &status, 0); 
+			i++; 
+		}
+		pid_t cur_pid = fork(); 
+		if(pid == 0)
+		{
+			execute_command(cur_node->command, true); 
+			_exit(cur_node -> command -> status); 
+		}
+		else
+		{
+			cur_node->pid = cur_pid; 
+		}
+
+		x++; 
+	}
+	return; 
+}
+
 void
 execute_command (command_t c, bool time_travel)
 {
