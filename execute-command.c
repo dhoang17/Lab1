@@ -314,7 +314,7 @@ void append(char * a, char *** b)
     }
     
     //Size the string array to accept one more word
-    *b = (char**)realloc(*b, sizeof(char*) * list_size);
+    *b = (char**)realloc(*b, sizeof(char*) * (list_size+1));
     
     //Allocate that new word ptr to accomodate the amount of letters in the word to add
     b[0][list_size] = (char*)malloc(sizeof(char) * (word_size));
@@ -373,10 +373,6 @@ void extract(command_t command, char ** read_list, char ** write_list)
     
 }
 
-//TODO: Figure out how to add2before list
-//TODO: Figure out QUEUE stuff
-
-
 //Graph_Node Structure
 //One per tree in command stream
 typedef struct graph_node *graph_node_t;
@@ -392,6 +388,7 @@ graph_node_t create_graph_node(command_t s)
 {
     graph_node_t return_val = (graph_node_t)malloc(sizeof(graph_node));
     return_val->command = s;
+    return_val->pid = -1;
     
     return return_val;
 }
@@ -412,8 +409,11 @@ void add2b4list(graph_node_t toAdd, graph_node_t receive)
     }
     
     //Size the before_list to accept one more graph_node
-    receive->before_list = (graph_node_t*)malloc(sizeof(graph_node_t)*list_size);
+    receive->before_list = (graph_node_t*)malloc(sizeof(graph_node_t)*(list_size+1));
     
+    //add toAdd into before_list
+    receive->before_list[list_size] = (graph_node_t)malloc(sizeof(graph_node));
+    receive->before_list[list_size] = toAdd;
 }
 
 //Linked List Node Structure
@@ -433,162 +433,61 @@ ll_node_t create_ll_node(command_node_t s)
 {
     ll_node_t return_val = (ll_node_t)malloc(sizeof(ll_node));
     return_val->next = (ll_node_t)malloc(sizeof(ll_node));
-    
+    return_val->next;
     return_val->graph_node = (graph_node_t)malloc(sizeof(graph_node));
     return_val->graph_node = create_graph_node(s->root);
-    
     extract(s->root, return_val->read_list, return_val->write_list);
     
     return return_val;
 }
 
-
-
-//TODO: Implement Queue Data structure
-typedef struct QNodeType
-{
-    ll_node_t    ch;
-    struct QNodeType *next;
-}QNode;
-// List Function Prototypes
-void InitQueue();                // Initialize the queue
-void ClearQueue();               // Remove all items from the queue
-ll_node_t Enqueue(ll_node_t ch);            // Enter an item in the queue
-char Dequeue();                  // Remove an item from the queue
-int isEmpty();                   // Return true if queue is empty
-int isFull();                    // Return true if queue is full
-
-//--------------------------------------------
-// Function: InitQueue()
-// Purpose: Initialize queue to empty.
-// Returns: void
-//--------------------------------------------
-void InitQueue()
-{
-    head = tail = NULL;
-}
-
-//--------------------------------------------
-// Function: ClearQueue()
-// Purpose: Remove all items from the queue
-// Returns: void
-//--------------------------------------------
-void ClearQueue()
-{
-    QNode *temp;
-    while(head != NULL)
-    {
-        temp = head;
-        head = head->next;
-        free(temp);
-    }
-    
-    head = tail = NULL; // Reset indices to start over
-}
-
-//--------------------------------------------
-// Function: Enqueue()
-// Purpose: Enqueue an item into the queue.
-// Returns: TRUE if enqueue was successful
-//        or FALSE if the enqueue failed.
-//--------------------------------------------
-int Enqueue(ll_node_t ch)
-{
-    QNode *temp;
-    
-    // Check to see if the Queue is full
-    if(isFull()) return FALSE;
-    
-    // Create new node for the queue
-    temp = (QNode *)malloc(sizeof(QNode));
-    temp->ch = ch;
-    temp->next = NULL;
-    
-    // Check for inserting first in the queue
-    if(head == NULL)
-        head = tail = temp;
-    else
-    {
-        tail->next = temp; // Insert into the queue
-        tail = temp;       // Set tail to new last node
-    }
-    
-    return TRUE;
-}
-
-//--------------------------------------------
-// Function: Dequeue()
-// Purpose: Dequeue an item from the Queue.
-// Returns: TRUE if dequeue was successful
-//        or FALSE if the dequeue failed.
-//--------------------------------------------
-ll_node_t Dequeue()
-{
-    ll_node_t ch;
-    QNode *temp;
-    
-    // Check for empty Queue
-    if(isEmpty()) return '\0';  // Return null character if queue is empty
-    else
-    {
-        ch = head->ch;        // Get character to return
-        temp = head;
-        head = head->next;    // Advance head pointer
-        free(temp);            // Free old head
-        // Check to see if queue is empty
-        if(isEmpty())
-        {
-            head = tail = NULL;        // Reset everything to empty queue
-        }
-    }
-    return ch;                // Return popped character
-}
-
-//--------------------------------------------
-// Function: isEmpty()
-// Purpose: Return true if the queue is empty
-// Returns: TRUE if empty, otherwise FALSE
-// Note: C has no boolean data type so we use
-//    the defined int values for TRUE and FALSE
-//    instead.
-//--------------------------------------------
-int isEmpty()
-{
-    return (head == NULL);
-}
-
-//--------------------------------------------
-// Function: isFull()
-// Purpose: Return true if the queue is full.
-// Returns: TRUE if full, otherwise FALSE
-//--------------------------------------------
-int isFull()
-{
-    return FALSE;
-}
-
-
-/*----END OF QUEUE DECLARATION - http://www.cs.uah.edu/~rcoleman/Common/CodeVault/Code/Code136_Queue.html */
-
 //Dependency Structure
-typedef struct dependency_graph *dependency_struct_t;
-struct dependency_struct
+typedef struct dependency_graph *dependency_graph_t;
+struct dependency_graph
 {
-    QNode no_dependency;
-    QNode dependency;
+    graph_node_t *dependencies;
+    graph_node_t *no_dependencies;
 };
 
+void initialize_dependency_graph(dependency_graph_t s)
+{
+    s->dependencies = (graph_node_t*)malloc(sizeof(graph_node_t));
+    s->no_dependencies = (graph_node_t*)malloc(sizeof(graph_node_t));
+}
+
+//Adds graphnode a to dependency list b dynamically
+void add2dependency(graph_node_t a, graph_node_t** b)
+{
+    int list_size = 0;
+    
+    while (b[0][list_size]!= NULL)
+    {
+        list_size++;
+    }
+    
+    if (!list_size)
+    {
+        *b = (graph_node_t)malloc(sizeof(graph_node));
+    }
+    
+    *b = (graph_node_t)realloc(*b, sizeof(graph_node_t) * (list_size+1));
+    
+    b[0][list_size] = (graph_node_t)malloc(sizeof(graph_node));
+    b[0][list_size] = a;
+}
 
 //Create graph structure with dependencies/intersections calculated
 dependency_graph create_graph(command_stream_t s)
 {
     dependency_graph_t return_val= (dependency_graph_t)malloc(sizeof(dependency_graph));
+    initialize_dependency_graph(return_val);
     
-    head = (ll_node_t)malloc(sizeof(ll_node));
-   head = NULL;
+    ll_node_t head = (ll_node_t)malloc(sizeof(ll_node));
+    ll_node_t head = NULL;
     
     //For each node in the command stream...
-    command_node_t traverse = s->head;
+    command_node_t traverse = (command_node_t)malloc(sizeof(command_node));
+    traverse = s->head;
     while (traverse != s->tail)
     {
         //construct a new ll_node
@@ -596,37 +495,35 @@ dependency_graph create_graph(command_stream_t s)
         temp = create_ll_node(traverse);
         
         //insert it into head of linked list
-        
-        //For first list item
-        temp->next = return_val->head;
-
+        temp->next = head;
         head = temp;
+        
         //For each ll_node after head in linked list...
-        ll_node_t traverse = (ll_node_t)malloc(sizeof(ll_node));
-        traverse2 = return_val->head->next;
+        ll_node_t traverse2 = (ll_node_t)malloc(sizeof(ll_node));
+        traverse2 = head->next;
         
         while (traverse2 != NULL)
         {
             //Take intersection between head and ll_node
-            bool RAW = intersect(traverse2->read_list, return_val->head->write_list);
-            bool WAR = intersect(traverse2->write_list, return_val->head->read_list);
-            bool WAW = intersect(traverse2->write_list, return_val->head->write_list);
+            bool RAW = intersect(traverse2->read_list, head->write_list);
+            bool WAR = intersect(traverse2->write_list, head->read_list);
+            bool WAW = intersect(traverse2->write_list, head->write_list);
             
             //If there's a dependency, add node to the beforelist of head
             if (RAW || WAR || WAW)
             {
-                add2b4list(traverse2, return_val->head);
+                add2b4list(traverse2, head);
             }
             
             //If head->before not null, add to dependencies, otherwise add to no_dependencies
-            if (return_val->head->graph_node->before_list != NULL)
+            if (head->graph_node->before_list != NULL)
             {
-               //enqueue dep
+                add2dependency(head->graph_node, &return_val->dependencies);
             }
             
             else
             {
-                //enque nodep
+                add2dependency(head->graph_node, &return_val->no_dependencies);
             }
             traverse2 = traverse2->next;
         }
