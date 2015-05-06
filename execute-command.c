@@ -3,13 +3,13 @@
 #include "command.h"
 #include "command-internals.h"
 
-
 #include <error.h>
 #include <fcntl.h>
 //Added directives
 #include<sys/wait.h>
 #include<unistd.h>
 #include<string.h>
+#include <stdlib.h>
 
 //TODO: i/o cases
 int
@@ -442,6 +442,9 @@ ll_node_t create_ll_node( command_t s)
     return return_val;
 }
 
+//Command_node Declaration (this is a command tree
+typedef struct command_node *command_node_t;
+
 //Dependency Structure
 typedef struct dependency_graph *dependency_graph_t;
 struct dependency_graph
@@ -476,6 +479,22 @@ void add2dependency(graph_node_t a, graph_node_t** b)
     b[0][list_size] = (graph_node_t)malloc(sizeof(struct graph_node));
     b[0][list_size] = a;
 }
+
+typedef struct command_stream *command_stream;
+struct command_stream
+{
+  command_node_t head;
+  command_node_t tail;
+  command_node_t cursor;
+};
+
+typedef struct command_node *command_node_t;
+struct command_node
+{
+  command_t root;
+  command_node_t next;
+};
+
 
 //Create graph structure with dependencies/intersections calculated
 dependency_graph_t create_graph(command_stream_t s)
@@ -538,6 +557,8 @@ int execute_graph(dependency_graph_t graph)
 {
 	execute_no_dependencies(graph -> no_dependencies);
 	execute_dependencies(graph->dependencies);
+
+	return 1;
 }
 
 void execute_no_dependencies(graph_node_t* no_deps)
@@ -603,6 +624,14 @@ void execute_dependencies(graph_node_t* deps)
 	}
 	return; 
 }
+
+void doit(command_stream_t s)
+{
+  dependency_graph_t graph = create_graph(s);
+  int final_status = 0;
+  final_status = execute_graph(graph);
+}
+
 
 void
 execute_command (command_t c, bool time_travel)

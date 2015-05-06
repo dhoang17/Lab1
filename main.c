@@ -22,6 +22,8 @@ get_next_byte (void *stream)
   return getc (stream);
 }
 
+
+
 int
 main (int argc, char **argv)
 {
@@ -55,9 +57,7 @@ main (int argc, char **argv)
   command_t command;
     if(time_travel)
     {
-        dependency_graph* graph = create_graph(command_stream);
-        int final_status = 0;
-        final_status = execute_graph;
+      doit(command_stream);
     }
     else
     {
