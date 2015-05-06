@@ -3,6 +3,7 @@
 #include "command.h"
 #include "command-internals.h"
 
+
 #include <error.h>
 #include <fcntl.h>
 //Added directives
@@ -362,13 +363,13 @@ void extract(command_t command, char ** read_list, char ** write_list)
     
     else if (command->type == SUBSHELL_COMMAND)
     {
-        extract(command->u.subshell_command);
+        extract(command->u.subshell_command, read_list, write_list);
     }
     
     else
     {
-        extract(command->u.command[0]);
-        extract(command->u.command[1]);
+        extract(command->u.command[0], read_list, write_list);
+        extract(command->u.command[1], read_list, write_list);
     }
     
 }
@@ -386,7 +387,7 @@ struct graph_node
 //Constructor for graph_node
 graph_node_t create_graph_node(command_t s)
 {
-    graph_node_t return_val = (graph_node_t)malloc(sizeof(graph_node));
+    graph_node_t return_val = (graph_node_t)malloc(sizeof(struct graph_node));
     return_val->command = s;
     return_val->pid = -1;
     
@@ -412,7 +413,7 @@ void add2b4list(graph_node_t toAdd, graph_node_t receive)
     receive->before_list = (graph_node_t*)malloc(sizeof(graph_node_t)*(list_size+1));
     
     //add toAdd into before_list
-    receive->before_list[list_size] = (graph_node_t)malloc(sizeof(graph_node));
+    receive->before_list[list_size] = (graph_node_t)malloc(sizeof(struct graph_node));
     receive->before_list[list_size] = toAdd;
 }
 
@@ -429,14 +430,14 @@ struct ll_node
 
 //Constructor for ll_node
 //Input is root of command tree
-ll_node_t create_ll_node(command_node_t s)
+ll_node_t create_ll_node( command_t s)
 {
-    ll_node_t return_val = (ll_node_t)malloc(sizeof(ll_node));
-    return_val->next = (ll_node_t)malloc(sizeof(ll_node));
+    ll_node_t return_val = (ll_node_t)malloc(sizeof(struct ll_node));
+    return_val->next = (ll_node_t)malloc(sizeof(struct ll_node));
     return_val->next;
-    return_val->graph_node = (graph_node_t)malloc(sizeof(graph_node));
-    return_val->graph_node = create_graph_node(s->root);
-    extract(s->root, return_val->read_list, return_val->write_list);
+    return_val->graph_node = (graph_node_t)malloc(sizeof(struct graph_node));
+    return_val->graph_node = create_graph_node(s);
+    extract(s, return_val->read_list, return_val->write_list);
     
     return return_val;
 }
@@ -467,39 +468,39 @@ void add2dependency(graph_node_t a, graph_node_t** b)
     
     if (!list_size)
     {
-        *b = (graph_node_t)malloc(sizeof(graph_node));
+        *b = (graph_node_t)malloc(sizeof(struct graph_node));
     }
     
     *b = (graph_node_t)realloc(*b, sizeof(graph_node_t) * (list_size+1));
     
-    b[0][list_size] = (graph_node_t)malloc(sizeof(graph_node));
+    b[0][list_size] = (graph_node_t)malloc(sizeof(struct graph_node));
     b[0][list_size] = a;
 }
 
 //Create graph structure with dependencies/intersections calculated
-dependency_graph create_graph(command_stream_t s)
+dependency_graph_t create_graph(command_stream_t s)
 {
-    dependency_graph_t return_val= (dependency_graph_t)malloc(sizeof(dependency_graph));
+    dependency_graph_t return_val= (dependency_graph_t)malloc(sizeof(struct dependency_graph));
     initialize_dependency_graph(return_val);
     
-    ll_node_t head = (ll_node_t)malloc(sizeof(ll_node));
-    ll_node_t head = NULL;
+    ll_node_t head = (ll_node_t)malloc(sizeof(struct ll_node));
+    head = NULL;
     
     //For each node in the command stream...
-    command_node_t traverse = (command_node_t)malloc(sizeof(command_node));
-    traverse = s->head;
-    while (traverse != s->tail)
+    //command_node_t traverse = (command_node_t)malloc(sizeof(struct command_node));
+	s->cursor = s->head; 
+    while (s->cursor != NULL)
     {
         //construct a new ll_node
-        ll_node_t temp = (ll_node_t)malloc(sizeof(ll_node));
-        temp = create_ll_node(traverse);
+        ll_node_t temp = (ll_node_t)malloc(sizeof(struct ll_node));
+        temp = create_ll_node(s->cursor->root);
         
         //insert it into head of linked list
         temp->next = head;
         head = temp;
         
         //For each ll_node after head in linked list...
-        ll_node_t traverse2 = (ll_node_t)malloc(sizeof(ll_node));
+        ll_node_t traverse2 = (ll_node_t)malloc(sizeof(struct ll_node));
         traverse2 = head->next;
         
         while (traverse2 != NULL)
@@ -527,7 +528,7 @@ dependency_graph create_graph(command_stream_t s)
             }
             traverse2 = traverse2->next;
         }
-        traverse = traverse->next;
+        s->cursor = s->cursor->next;
     }
  
     return return_val;
@@ -535,13 +536,13 @@ dependency_graph create_graph(command_stream_t s)
 
 int execute_graph(dependency_graph_t graph)
 {
-	execute_no_dependencies(graph -> no_dependency);
-	execute_dependencies(graph->dependency);
+	execute_no_dependencies(graph -> no_dependencies);
+	execute_dependencies(graph->dependencies);
 }
 
 void execute_no_dependencies(graph_node_t* no_deps)
 {	
-	int x = 0
+	int x = 0;
 	while(no_deps[x] != NULL)
 	{
 		graph_node_t cur_node =no_deps[x]; 
@@ -568,15 +569,17 @@ void execute_dependencies(graph_node_t* deps)
 	{
 		graph_node_t cur_node = deps[x]; 
 		
-		loop_label:
 		int i = 0; 
 		while(cur_node->before_list[i] != NULL)
 		{
 			if(cur_node->before_list[i]->pid == -1)
 			{
-				goto loop_label; 
+				continue;  
 			}
-			i++; 
+			else
+			{
+				i++; 
+			}
 		}
 		int status; 
 		i = 0; 
@@ -586,7 +589,7 @@ void execute_dependencies(graph_node_t* deps)
 			i++; 
 		}
 		pid_t cur_pid = fork(); 
-		if(pid == 0)
+		if(cur_pid == 0)
 		{
 			execute_command(cur_node->command, true); 
 			_exit(cur_node -> command -> status); 
