@@ -11,6 +11,7 @@
 #include<string.h>
 #include <stdlib.h>
 
+
 //TODO: i/o cases
 int
 command_status (command_t c)
@@ -295,13 +296,13 @@ bool intersect(char** a, char** b)
 }
 
 //Appends string to array of strings (add a to b)
-void append(char * a, char *** b)
+void append(char * a, char ** b)
 {
     
     //Get number of elements of an array of strings (#words)
     int list_size = 0;
     
-    while (b[0][list_size]!= NULL)
+    while (b != NULL && b[list_size]!= NULL)
     {
         list_size++;
     }
@@ -311,21 +312,21 @@ void append(char * a, char *** b)
     
     if (!list_size)
     {
-        *b = (char**)malloc(sizeof(char*));
+        b = (char**)malloc(sizeof(char*));
     }
     
     //Size the string array to accept one more word
-    *b = (char**)realloc(*b, sizeof(char*) * (list_size+1));
+    b = (char**)realloc(*b, sizeof(char*) * (list_size+1));
     
     //Allocate that new word ptr to accomodate the amount of letters in the word to add
-    b[0][list_size] = (char*)malloc(sizeof(char) * (word_size));
+    b[list_size] = (char*)malloc(sizeof(char) * (word_size));
     
     //Copy over the word into the new allocated memory space
     int i = 0;
     
     while (i < word_size)
     {
-        b[0][list_size][i] = a[i];
+        b[list_size][i] = a[i];
         i++;
     }
 }
@@ -351,13 +352,14 @@ void extract(command_t command, char ** read_list, char ** write_list)
             int traverse = 1;
             while (command->u.word[traverse] != NULL)
             {
-                append(command->u.word[traverse], &read_list);
+                append(command->u.word[traverse], read_list);
+                traverse++; 
             }
         }
         //extract ouput into writelist
         if (command->output != NULL)
         {
-            append(command->output, &write_list);
+            append(command->output, write_list);
         }
     }
     
@@ -516,10 +518,13 @@ dependency_graph_t create_graph(command_stream_t s)
         //insert it into head of linked list
         temp->next = head;
         head = temp;
-        
+        s->cursor = s->cursor->next;
+     }
         //For each ll_node after head in linked list...
         ll_node_t traverse2 = (ll_node_t)malloc(sizeof(struct ll_node));
         traverse2 = head->next;
+        
+      
         
         while (traverse2 != NULL)
         {
@@ -544,11 +549,22 @@ dependency_graph_t create_graph(command_stream_t s)
             {
 	      add2dependency(head->graph_node, &(return_val->no_dependencies));
             }
+            if(traverse2->next == NULL)
+            {
+            	if(traverse2->graph_node->before_list != NULL)
+            	{
+            		add2dependency(traverse2->graph_node, &(return_val->dependencies)); 
+            	}
+            	else
+            	{
+            		add2dependency(traverse2->graph_node, &(return_val->no_dependencies));
+            	}
+            }
             traverse2 = traverse2->next;
         }
-        s->cursor = s->cursor->next;
-    }
- 
+
+        
+       
     return return_val;
 }
 
