@@ -275,13 +275,13 @@ bool intersect(char** a, char** b)
     int i = 0;
     int j = 0;
     
-    while ( (a+i)!= NULL)
+    while ( a[i]!= NULL)
     {
         j = 0;
         
-        while ( (b+j) != NULL)
+        while ( b[j] != NULL)
         {
-            if ( !strcmp(a+i, b+j))
+	  if ( !strcmp(a[i], b[j]))
             {
                 return true;
             }
@@ -434,7 +434,6 @@ ll_node_t create_ll_node( command_t s)
 {
     ll_node_t return_val = (ll_node_t)malloc(sizeof(struct ll_node));
     return_val->next = (ll_node_t)malloc(sizeof(struct ll_node));
-    return_val->next;
     return_val->graph_node = (graph_node_t)malloc(sizeof(struct graph_node));
     return_val->graph_node = create_graph_node(s);
     extract(s, return_val->read_list, return_val->write_list);
@@ -471,10 +470,10 @@ void add2dependency(graph_node_t a, graph_node_t** b)
     
     if (!list_size)
     {
-        *b = (graph_node_t)malloc(sizeof(struct graph_node));
+        *b = (graph_node_t*)malloc(sizeof(graph_node_t));
     }
     
-    *b = (graph_node_t)realloc(*b, sizeof(graph_node_t) * (list_size+1));
+    *b = (graph_node_t*)realloc(*b, sizeof(graph_node_t) * (list_size+1));
     
     b[0][list_size] = (graph_node_t)malloc(sizeof(struct graph_node));
     b[0][list_size] = a;
@@ -532,18 +531,18 @@ dependency_graph_t create_graph(command_stream_t s)
             //If there's a dependency, add node to the beforelist of head
             if (RAW || WAR || WAW)
             {
-                add2b4list(traverse2, head);
+                add2b4list(traverse2->graph_node, head->graph_node);
             }
             
             //If head->before not null, add to dependencies, otherwise add to no_dependencies
             if (head->graph_node->before_list != NULL)
             {
-                add2dependency(head->graph_node, &return_val->dependencies);
+	      add2dependency(head->graph_node, &(return_val->dependencies));
             }
             
             else
             {
-                add2dependency(head->graph_node, &return_val->no_dependencies);
+	      add2dependency(head->graph_node, &(return_val->no_dependencies));
             }
             traverse2 = traverse2->next;
         }
@@ -551,14 +550,6 @@ dependency_graph_t create_graph(command_stream_t s)
     }
  
     return return_val;
-}
-
-int execute_graph(dependency_graph_t graph)
-{
-	execute_no_dependencies(graph -> no_dependencies);
-	execute_dependencies(graph->dependencies);
-
-	return 1;
 }
 
 void execute_no_dependencies(graph_node_t* no_deps)
@@ -624,6 +615,15 @@ void execute_dependencies(graph_node_t* deps)
 	}
 	return; 
 }
+
+int execute_graph(dependency_graph_t graph)
+{
+  execute_no_dependencies(graph->no_dependencies);
+  execute_dependencies(graph->dependencies);
+
+  return 1;
+}
+
 
 void doit(command_stream_t s)
 {

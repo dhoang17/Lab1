@@ -10,6 +10,10 @@
 static char const *program_name;
 static char const *script_name;
 
+
+void doit(command_stream_t s);
+
+
 static void
 usage (void)
 {
