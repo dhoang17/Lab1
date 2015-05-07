@@ -461,24 +461,24 @@ void initialize_dependency_graph(dependency_graph_t s)
 }
 
 //Adds graphnode a to dependency list b dynamically
-void add2dependency(graph_node_t a, graph_node_t** b)
+void add2dependency(graph_node_t a, graph_node_t* b)
 {
     int list_size = 0;
     
-    while (b[0][list_size]!= NULL)
+    while (b[list_size]!= NULL)
     {
         list_size++;
     }
     
     if (!list_size)
     {
-        *b = (graph_node_t*)malloc(sizeof(graph_node_t));
+        b = (graph_node_t*)malloc(sizeof(graph_node_t));
     }
     
-    *b = (graph_node_t*)realloc(*b, sizeof(graph_node_t) * (list_size+1));
+    b = (graph_node_t*)realloc(b, sizeof(graph_node_t) * (list_size+1));
     
-    b[0][list_size] = (graph_node_t)malloc(sizeof(struct graph_node));
-    b[0][list_size] = a;
+    b[list_size] = (graph_node_t)malloc(sizeof(struct graph_node));
+    b[list_size] = a;
 }
 
 typedef struct command_stream *command_stream;
@@ -553,11 +553,11 @@ dependency_graph_t create_graph(command_stream_t s)
             {
             	if(traverse2->graph_node->before_list != NULL)
             	{
-            		add2dependency(traverse2->graph_node, &(return_val->dependencies)); 
+            		add2dependency(traverse2->graph_node, return_val->dependencies); 
             	}
             	else
             	{
-            		add2dependency(traverse2->graph_node, &(return_val->no_dependencies));
+            		add2dependency(traverse2->graph_node, return_val->no_dependencies);
             	}
             }
             traverse2 = traverse2->next;
