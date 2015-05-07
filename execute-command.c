@@ -296,13 +296,13 @@ bool intersect(char** a, char** b)
 }
 
 //Appends string to array of strings (add a to b)
-void append(char * a, char ** b)
+void append(char * a, char *** b)
 {
     
     //Get number of elements of an array of strings (#words)
     int list_size = 0;
     
-    while (b != NULL && b[list_size]!= NULL)
+    while (*b != NULL && b[0][list_size]!= NULL)
     {
         list_size++;
     }
@@ -312,27 +312,27 @@ void append(char * a, char ** b)
     
     if (!list_size)
     {
-        b = (char**)malloc(sizeof(char*));
+        *b = (char**)malloc(sizeof(char*));
     }
     
     //Size the string array to accept one more word
-    b = (char**)realloc(*b, sizeof(char*) * (list_size+1));
+    *b = (char**)realloc(**b, sizeof(char*) * (list_size+1));
     
     //Allocate that new word ptr to accomodate the amount of letters in the word to add
-    b[list_size] = (char*)malloc(sizeof(char) * (word_size));
+    b[0][list_size] = (char*)malloc(sizeof(char) * (word_size));
     
     //Copy over the word into the new allocated memory space
     int i = 0;
     
     while (i < word_size)
     {
-        b[list_size][i] = a[i];
+        b[0][list_size][i] = a[i];
         i++;
     }
 }
 
 //Extracting Dependencies
-void extract(command_t command, char ** read_list, char ** write_list)
+void extract(command_t command, char *** read_list, char *** write_list)
 {
     if (command == NULL)
     {
@@ -344,7 +344,7 @@ void extract(command_t command, char ** read_list, char ** write_list)
         //extract input into readlist
         if (command->input != NULL)
         {
-            append(command->input, &read_list);
+            append(command->input, read_list);
         }
         
         if (command->u.word != NULL)
@@ -392,7 +392,8 @@ graph_node_t create_graph_node(command_t s)
     graph_node_t return_val = (graph_node_t)malloc(sizeof(struct graph_node));
     return_val->command = s;
     return_val->pid = -1;
-    
+    return_val->before_list = (graph_node_t*)malloc(sizeof(struct graph_node));
+    return_val->before_list = NULL;
     return return_val;
 }
 
@@ -401,7 +402,8 @@ void add2b4list(graph_node_t toAdd, graph_node_t receive)
 {
     //Get number of elements in receive's beforelist
     int list_size = 0;
-    while (receive->before_list[list_size] != NULL)
+    
+    while (receive->before_list != NULL && receive->before_list[list_size] != NULL)
     {
         list_size++;
     }
@@ -438,8 +440,8 @@ ll_node_t create_ll_node( command_t s)
     return_val->next = (ll_node_t)malloc(sizeof(struct ll_node));
     return_val->graph_node = (graph_node_t)malloc(sizeof(struct graph_node));
     return_val->graph_node = create_graph_node(s);
-    extract(s, return_val->read_list, return_val->write_list);
-    
+    extract(s, &(return_val->read_list), &(return_val->write_list));
+   
     return return_val;
 }
 
