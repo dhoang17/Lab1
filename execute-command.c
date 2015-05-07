@@ -583,6 +583,7 @@ void execute_no_dependencies(graph_node_t* no_deps)
 		else
 		{
 			cur_node->pid = cur_pid; 
+			//return_com = cur_node->command; 
 		}
 		x++; 
 	}
@@ -624,7 +625,8 @@ void execute_dependencies(graph_node_t* deps)
 		}
 		else
 		{
-			cur_node->pid = cur_pid; 
+			cur_node->pid = cur_pid;
+			//return_com = cur_node->command;   
 		}
 
 		x++; 
@@ -640,12 +642,11 @@ int execute_graph(dependency_graph_t graph)
   return 1;
 }
 
-
 void doit(command_stream_t s)
 {
   dependency_graph_t graph = create_graph(s);
   int final_status = 0;
-  final_status = execute_graph(graph);
+  final_status = execute_graph(graph);  
 }
 
 

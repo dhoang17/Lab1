@@ -60,8 +60,8 @@ main (int argc, char **argv)
   command_t last_command = NULL;
   command_t command;
     if(time_travel)
-    {
-      doit(command_stream);
+    { 
+       doit(command_stream); 
     }
     else
     {
