@@ -3,100 +3,45 @@ This is a skeleton for CS 111 Lab 1.
 Replace this README file with notes on your implementation.
 Mentions any special features or limitations.
 
-CS LAB 1 Part B
+CS LAB 1 Part C
 Mrinal Chawla - 004273708
 Dylan Hoang - 604268191
 
-The file read-command.c is divided into two main functions make_command_stream and read_command_stream.
+This lab adds the parallelism “-t” functionality in the time trash program.
 
-Make_command_stream takes in user input, and produces a linked list of pointers to 
-command trees. 
+If the program isn’t run with “-t,” it runs normally as it did in 1B.
 
-Read_command_stream traverses this linked list, returning one command tree
-at a time for the program’s print function.
+Otherwise, in order to run in parallel, the program requires data structures and multithreading to accommodate
+appropriate parallelism, which accounts for command dependencies.
 
-Make_command_stream is divided into two parts.
+Handling parallelism is divided into two parts: Graph Construction, and Graph Execution.
 
-The first part constructs a valid buffer while error checking. If the program passes this
-first part, that means all checks have been validated, and the program can proceed to construct
-the linked list.
+What is a graph?
+A Graph is two linked lists of nodes, where the total #nodes = #nodes in the command stream
+	-> the first list enumerates all nodes that don’t have dependencies (these can be executed in parallel)
+	-> the second list enumerates all nodes which do have dependencies (these could be executed sequentially)
 
-	The buffer is constructed by using the get_next_byte function to receive one character at a 
-	time. For error checking, the function uses a multitude of bool flags and index placeholders
-	to check if certain characters can correctly follow others etc.
+In each node there exists:
+	read list -> all words that will be read in by the command tree
+	write list -> all words that will be written to by the command tree
+	graph_node -> in each there exists
+		command -> pointer to the root of the command tree
+		before_list -> list of all other nodes that need to be executed before this node
 
-	Specific attention here should be called to the handling of newline characters. If there was one
-	it was to be replaced with the sequential command ;, but if there was a sequence it was to be replaced
-	with a \n. Finally, if these were at the start or end of the file, nothing was to be added.
-
-	Also, since the second part requires all operators to be of length single character, this buffer
-	construction algorithm replaces || with { and removes repetitive whitespace and only includes
-	significant newlines. 
-
-The second part uses the constructed buffer to construct the linked list of command trees.
-
-	The algorithm used here is a modified version of the infix to postfix algorithm used for handling
-	operator precedence. There are two stacks, a command and an operator stack. Here is the pseudocode
-	of the algorithm:
-
-	Two stacks are created. One holds the char value of operators, which are definied as ;,
-	&&, ||, |, (, ). These operators are assigned a precedence value. | has the highest
-	precedence. &&, || have equal precedence less than |. ; has the lowest precedence. 
-	NOTE: When the stack is handling the operators, all operators are represented with
-	a single char. && is represented as & and || is represented as {. The second stack
-	holds command structs of simple commands. When the algorithm runs into a character
-	that is not an operator, there are several steps it can take. If it is a redirection
-	operator ( < or >) the top command in the command stack is assigned an output or input
-	value as appropriate. If it is word, then a 2 dimensonal array of characters is
-	generated (each word following is added to the array until an operator is found). 
-	This array is used to generate a simple command, which is pushed onto the command 
-	stack. If it is a space, the character is ignored. If it is a newline or an EOF
-	character, a node is generated (More details below). If the algorithm finds an operator
-	then a stack handling function is called. This function pops off all operators off the
-	operator stack which have higher precedence then the current operator. For each operator
-	popped, two commands are popped. These commands are used to generate an operator specific
-	command, and are assigned as the children to the operator command. This command is then 
-	pushed onto the command stack. Once the top operator on the stack has a lower precedence 
-	than the current operator, or the stack is empty, then the current operator is pushed. 
-	There are some special cases. If the current operator is a (, then it is pushed onto 
-	the operator stack. If it is a ) then operators are popped until a matching ( is found. 
-	The same two command pop process is followed. Once the stack is handled, the function
-	returns. After a newline is found in the input, then a new node is created. This
-	involves calling a function called finish_stack which consolidates whatever is left
-	on the two stacks into a single command. This command is then set as the root of the 
-	node. The node is then added to the command stream, which is a linked list of command 
-	nodes (each node has a pointer to the next). Once the entire input has been processed, 
-	The stream that is generated is returned. 
-	
-	When processing this stream, the members of the stream are used extensively. A cursor
-	is assigned at the head of the stream. Every time read_command_stream is called, the
-	root of the node which the cursor points to is returned. Then the cursor is incremented 
-	to the next node. At the end, the cursor is set to NULL. 
+How does Graph Construction take place?
+Traverse through every command in the command stream, and for each command
+	-create a node, extracting its dependencies by constructing its read and write lists 
+	(this requires traversal of the entire command tree)
+	-compare this node to all existing nodes in the current list, and add it to the dependency list 
+	or the no_dependency list depending on if there is a dependency
+	(dependency exists if there is intersection between write lists or read & write lists)
+	(i.e. RAR/WAR/RAW)
 
 
-execute-command.c:
-
-This file's implementation allows for the execution of commands. There is a switch statement in the main
-function, which checks each command's type. If the command is a simple command, it orchastrates a call to
-execvp which will execute the command. If the command is an operator, the function recursively calls itself
-on the children of the command in order to traverse the command tree. There are also some error checks
-implemented, which deal with the errors of forking processes and aliasing stdin and stdout for i/o 
-redirection. Also, logic is checked as well. For example, if the left side of an && command failes to execute
-then the right side is not executed. If the left side of an || command executes, then the right side is not 
-executed. A sequence command uses the blocking implementation of waitpid to execute from right to left. A 
-pipe command uses dup2 twice to set up the i/o correctly. The final version of the project is made to mimic
-the behaviour of the sh command. 
+How is the graph executed?
 
 
 
 
 
-Special Notes:
--program only needs to traverse the user input twice. Once to create a valid buffer and error check, and another time, 
-traversing that buffer to produce a valid linked list of trees. 
--the stack algorithm required reference from groups.csail.mit.edu/graphics/classes/6.837/F04/cpp_notes/stack1.html
 Limitations:
-every string of word commands is limited by 100 in length
-the stack size of the commands and operators is limited to 100 in length
-does not handle subshell precedence like sh command does.
-

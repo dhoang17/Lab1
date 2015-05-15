@@ -8,6 +8,14 @@ enum command_type
     PIPE_COMMAND,        // A | B
     SIMPLE_COMMAND,      // a simple command
     SUBSHELL_COMMAND,    // ( A )
+      
+      
+    //Part 1A Design
+    ONE_COMMAND,        // A >> B     - redirect standard output to replace current contents
+    TWO_COMMAND,        // A >& B     - redirect standard output and standard error to replace current contents
+    THREE_COMMAND,      // A <& B       -??
+    FOUR_COMMAND,       // A <> B     - ??
+    FIVE_COMMAND,       // A >| B     - ??
   };
 
 // Data associated with a command.

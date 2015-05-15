@@ -34,6 +34,7 @@ main (int argc, char **argv)
   int command_number = 1;
   bool print_tree = false;
   bool time_travel = false;
+    bool option_c = false;
   program_name = argv[0];
 
   for (;;)
@@ -41,6 +42,9 @@ main (int argc, char **argv)
       {
       case 'p': print_tree = true; break;
       case 't': time_travel = true; break;
+              
+              //TODO: DEAL WITH THIS CASE
+          case 'c': option_c = true; break;
       default: usage (); break;
       case -1: goto options_exhausted;
       }
