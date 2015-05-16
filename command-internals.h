@@ -29,6 +29,12 @@ struct command
   // I/O redirections, or null if none.
   char *input;
   char *output;
+  char *append; 
+
+  int duplicate_input;
+  int duplicate_output; 
+
+  int force_overwrite; 
 
   union
   {

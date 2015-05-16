@@ -964,6 +964,8 @@ make_command_stream (int (*get_next_byte) (void *),
 
     //TODO: ACCOUNT FOR NEW COMMANDS!!!
 
+    bool overwrite = true; 
+
 	operator_stack_t op_stack = (operator_stack_t)malloc(sizeof(struct operator_stack));
 	op_init(op_stack);
 
@@ -995,7 +997,7 @@ make_command_stream (int (*get_next_byte) (void *),
 	  {
 	    if(a[x] == ' ')
 	      {
-		x++;
+			x++;
 	      }
 
 	    if(isalnum(a[x]) || (a[x] == '!') ||
@@ -1005,16 +1007,21 @@ make_command_stream (int (*get_next_byte) (void *),
 	       (a[x] == ':') || (a[x] == '@')||
 	       (a[x] == '^'))
 	      {
-		y = x;
+			y = x;
 
-		while((a[y] != '&') &&
-		      (a[y] != '{') &&
+		while((a[y] != '&' ) &&
+		      (a[y] != '{' ) &&
 		      (a[y] != '|' ) &&
 		      (a[y] != ';' ) &&
 		      (a[y] != '(' ) &&
 		      (a[y] != '>' ) &&
-		      (a[y] != '<') &&
+		      (a[y] != '<' ) &&
 		      (a[y] != ')' ) &&
+		      (a[y] != '}' ) &&
+		      (a[y] != '~' ) &&
+		      (a[y] != '`' ) &&
+		      (a[y] != '[' ) &&
+		      (a[y] != ']' ) && 
 		      (a[y] != -1  ) &&
 		      (a[y] != '\n') )
 		  {
@@ -1026,19 +1033,19 @@ make_command_stream (int (*get_next_byte) (void *),
 		    if(a[x] == ' ')
 		      {
 
-			while(a[x] == ' ')
-			  {
-			    x++;
+				while(a[x] == ' ')
+			  	{
+			    	x++;
 
-			  }
-			n++;
-			m = 0;
+			  	}
+				n++;
+				m = 0;
 		      }
 		    if(x != y)
 		      {
-			cur_word[n][m] = a[x];
-			x++;
-			m++;
+				cur_word[n][m] = a[x];
+				x++;
+				m++;
 		      }
 		  }
 
@@ -1109,46 +1116,103 @@ make_command_stream (int (*get_next_byte) (void *),
 		a[x] == ')' ||
 		a[x] == '('  )
 	      {
-		char *temp = (char*)malloc(sizeof(char));
-		*temp = *(a+x);
-		op_push(op_stack, temp);
-		handle_stack(op_stack, com_stack);
-		x++;
+			char *temp = (char*)malloc(sizeof(char));
+			*temp = *(a+x);
+			op_push(op_stack, temp);
+			handle_stack(op_stack, com_stack);
+			x++;
 	      }
 
 	    if(a[x] == '<')
-	      {
-		x++;
-		char* direct_word=(char*)malloc(sizeof(char)*100);
-		while(a[x] == ' ')
-		  {
-		    x++;
-		  }
+	    {
+			x++;
+			char* direct_word=(char*)malloc(sizeof(char)*100);
+			while(a[x] == ' ')
+		  	{
+		    	x++;
+		  	}
 
-		while(a[x] != '&' &&
-		        a[x] != '|'  &&
-		        a[x] != '{' &&
-		        a[x] != ';'  &&
-		        a[x] != ' '  &&
-		        a[x] != ')'  &&
-		        a[x] != '('  &&
-		                a[x] != '>'  &&
-		                a[x] != '\n' &&
-		                a[x] != '\t' &&
-		      a[x] != -1    )
-		  {
+			while(a[x] != '&' &&
+		        	a[x] != '|'  &&
+		        	a[x] != '{' &&
+		        	a[x] != ';'  &&
+		        	a[x] != ' '  &&
+		        	a[x] != ')'  &&
+		        	a[x] != '('  &&
+		        	a[x] != '>'  &&
+		        	a[x] != '}'  &&
+		        	a[x] != '~'  &&
+		        	a[x] != '`'  &&
+		        	a[x] != '['  &&
+		        	a[x] != ']'  &&
+ 		            a[x] != '\n' &&
+		            a[x] != '\t' &&
+		      		a[x] != -1    )
+		    {
 
-		    direct_word[q] = a[x];
-		    x++;
-		    q++;
-		  }
+		    	direct_word[q] = a[x];
+		    	x++;
+		    	q++;
+		  	}
 
-		command_t  tz = (command_t)malloc(sizeof(struct command));
-		tz = com_pop(com_stack);
-		temp_com = tz;
+			command_t  tz = (command_t)malloc(sizeof(struct command));
+			tz = com_pop(com_stack);
+			temp_com = tz;
 
-		char* temp_word = (char*)malloc(sizeof(char));
-		int Iter1 = 0;
+			char* temp_word = (char*)malloc(sizeof(char));
+			int Iter1 = 0;
+			while(direct_word[Iter1] != '\0')
+		  	{
+		    	temp_word[Iter1] = direct_word[Iter1];
+		    	direct_word[Iter1] = '\0';
+		    	Iter1++;
+		  	}
+
+			temp_com->input = (char*)malloc(sizeof(char)*100);
+			temp_com->input = temp_word;
+			com_push(com_stack, temp_com);
+
+			temp_word = NULL;
+			q = 0;
+	    }
+
+	    if(a[x] == '}')
+	    {
+			x++;
+			char* direct_word=(char*)malloc(sizeof(char)*100);
+			while(a[x] == ' ')
+		  	{
+		    	x++;
+		  	}
+
+			while(  a[x] != '&'  &&
+		        	a[x] != '|'  &&
+		        	a[x] != '{'  &&
+		        	a[x] != ';'  &&
+		        	a[x] != ' '  &&
+		        	a[x] != ')'  &&
+		        	a[x] != '('  &&
+		        	a[x] != '<'  &&
+		        	a[x] != '>'  &&
+		        	a[x] != '~'  &&
+		        	a[x] != '`'  &&
+		        	a[x] != '['  &&
+		        	a[x] != ']'  &&
+ 		            a[x] != '\n' &&
+		            a[x] != '\t' &&
+		      		a[x] != -1    )
+		    {
+
+		    	direct_word[q] = a[x];
+		    	x++;
+		    	q++;
+		  	}
+				command_t  ta = (command_t)malloc(sizeof(struct command));
+				ta = com_pop(com_stack);
+				temp_com = ta;
+				char* temp_word = (char*)malloc(sizeof(char));
+				int Iter1 = 0;
+
 		while(direct_word[Iter1] != '\0')
 		  {
 		    temp_word[Iter1] = direct_word[Iter1];
@@ -1156,45 +1220,51 @@ make_command_stream (int (*get_next_byte) (void *),
 		    Iter1++;
 		  }
 
-		temp_com->input = (char*)malloc(sizeof(char)*100);
-		temp_com->input = temp_word;
-		com_push(com_stack, temp_com);
+		  	temp_com->append = (char*)malloc(sizeof(char)*100);
+			temp_com->append = temp_word;
+			com_push(com_stack, temp_com);
 
-		temp_word = NULL;
-		q = 0;
-	      }
+			temp_word = NULL;
+			q = 0;
 
-	    if(a[x] == '>')
-	      {
-		x++;
-		char* direct_word=(char*)malloc(sizeof(char)*100);
-		while(a[x] == ' ')
-		  {
-		    x++;
-		  }
+	    }
 
-		while(a[x] != '&' &&
-		        a[x] != '|' &&
-		        a[x] != '{' &&
-		        a[x] != ';' &&
-		        a[x] != ' ' &&
-		        a[x] != ')' &&
-		        a[x] != '(' &&
-		                a[x] != '<' &&
-		                a[x] != '\n'&&
-		                a[x] != '\t'&&
-		      a[x] != -1   )
-		  {
+		if(a[x] == '>')
+	    {
+			x++;
+			char* direct_word=(char*)malloc(sizeof(char)*100);
+			while(a[x] == ' ')
+		  	{
+		    	x++;
+		  	}
 
-		    direct_word[q] = a[x];
-		    x++;
-		    q++;
-		  }
-		command_t  tz = (command_t)malloc(sizeof(struct command));
-		tz = com_pop(com_stack);
-		temp_com = tz;
-		char* temp_word = (char*)malloc(sizeof(char));
-		int Iter1 = 0;
+			while(  a[x] != '&'  &&
+		        	a[x] != '|'  &&
+		        	a[x] != '{'  &&
+		        	a[x] != ';'  &&
+		        	a[x] != ' '  &&
+		        	a[x] != ')'  &&
+		        	a[x] != '('  &&
+		        	a[x] != '<'  &&
+		        	a[x] != '}'  &&
+		        	a[x] != '~'  &&
+		        	a[x] != '`'  &&
+		        	a[x] != '['  &&
+		        	a[x] != ']'  &&
+ 		            a[x] != '\n' &&
+		            a[x] != '\t' &&
+		      		a[x] != -1    )
+		    {
+
+		    	direct_word[q] = a[x];
+		    	x++;
+		    	q++;
+		  	}
+				command_t  tz = (command_t)malloc(sizeof(struct command));
+				tz = com_pop(com_stack);
+				temp_com = tz;
+				char* temp_word = (char*)malloc(sizeof(char));
+				int Iter1 = 0;
 
 		while(direct_word[Iter1] != '\0')
 		  {
@@ -1204,14 +1274,263 @@ make_command_stream (int (*get_next_byte) (void *),
 		  }
 
 
-		temp_com->output = (char*)malloc(sizeof(char)*100);
-		temp_com->output = temp_word;
-		com_push(com_stack, temp_com);
 
-		temp_word = NULL;
-		q = 0;
+			temp_com->output = (char*)malloc(sizeof(char)*100);
+			temp_com->output = temp_word;
+			com_push(com_stack, temp_com);
 
-	      }
+			temp_word = NULL;
+			q = 0;
+
+	    }
+
+	    if(a[x] == '~')
+	    {
+	    	int target_fd; 
+	    	command_t za = (command_t)malloc(sizeof(struct command)); 
+	    	za = com_pop(com_stack); 
+	    	if(isdigit(za->u.word[0]))
+	    	{
+	    		target_fd = za->u.word[0];
+	    		za = com_pop(com_stack);  
+	    	}
+	    	else
+	    	{
+	    		target_fd = 0; 
+	    	}
+	    	
+			x++;
+			char* direct_word=(char*)malloc(sizeof(char)*100);
+			while(a[x] == ' ')
+		  	{
+		    	x++;
+		  	}
+
+			while(a[x] != '&' &&
+		        	a[x] != '|'  &&
+		        	a[x] != '{' &&
+		        	a[x] != ';'  &&
+		        	a[x] != ' '  &&
+		        	a[x] != ')'  &&
+		        	a[x] != '('  &&
+		        	a[x] != '>'  &&
+		        	a[x] != '}'  &&
+		        	a[x] != '~'  &&
+		        	a[x] != '`'  &&
+		        	a[x] != '['  &&
+		        	a[x] != ']'  &&
+ 		            a[x] != '\n' &&
+		            a[x] != '\t' &&
+		      		a[x] != -1    )
+		    {
+
+		    	direct_word[q] = a[x];
+		    	x++;
+		    	q++;
+		  	}
+
+			
+			char* temp_word = (char*)malloc(sizeof(char));
+			int Iter1 = 0;
+			while(direct_word[Iter1] != '\0')
+		  	{
+		    	temp_word[Iter1] = direct_word[Iter1];
+		    	direct_word[Iter1] = '\0';
+		    	Iter1++;
+		  	}
+
+			za->input = (char*)malloc(sizeof(char)*100);
+			za->input = temp_word;
+			za->duplicate_input = target_fd; 
+			com_push(com_stack, za);
+
+			temp_word = NULL;
+			q = 0;	    	
+	    }
+
+   		if(a[x] == '`')
+	    {
+	    	int target_fd; 
+	    	command_t zb = (command_t)malloc(sizeof(struct command)); 
+	    	zb = com_pop(com_stack); 
+	    	if(isdigit(zb->u.word[0]))
+	    	{
+	    		target_fd = zb->u.word[0];
+	    		zb = com_pop(com_stack);  
+	    	}
+	    	else
+	    	{
+	    		target_fd = 0; 
+	    	}
+	    	
+			x++;
+			char* direct_word=(char*)malloc(sizeof(char)*100);
+			while(a[x] == ' ')
+		  	{
+		    	x++;
+		  	}
+
+			while(a[x] != '&' &&
+		        	a[x] != '|'  &&
+		        	a[x] != '{' &&
+		        	a[x] != ';'  &&
+		        	a[x] != ' '  &&
+		        	a[x] != ')'  &&
+		        	a[x] != '('  &&
+		        	a[x] != '>'  &&
+		        	a[x] != '}'  &&
+		        	a[x] != '~'  &&
+		        	a[x] != '`'  &&
+		        	a[x] != '['  &&
+		        	a[x] != ']'  &&
+ 		            a[x] != '\n' &&
+		            a[x] != '\t' &&
+		      		a[x] != -1    )
+		    {
+
+		    	direct_word[q] = a[x];
+		    	x++;
+		    	q++;
+		  	}
+
+			
+			char* temp_word = (char*)malloc(sizeof(char));
+			int Iter1 = 0;
+			while(direct_word[Iter1] != '\0')
+		  	{
+		    	temp_word[Iter1] = direct_word[Iter1];
+		    	direct_word[Iter1] = '\0';
+		    	Iter1++;
+		  	}
+
+			zb->output = (char*)malloc(sizeof(char)*100);
+			zb->output = temp_word;
+			zb->duplicate_output = target_fd; 
+			com_push(com_stack, zb);
+
+			temp_word = NULL;
+			q = 0;	    	
+	    }	    
+
+	    if(a[x] == '[')
+	    {
+	    	x++;
+			char* direct_word=(char*)malloc(sizeof(char)*100);
+			while(a[x] == ' ')
+		  	{
+		    	x++;
+		  	}
+
+			while(  a[x] != '&'  &&
+		        	a[x] != '|'  &&
+		        	a[x] != '{'  &&
+		        	a[x] != ';'  &&
+		        	a[x] != ' '  &&
+		        	a[x] != ')'  &&
+		        	a[x] != '('  &&
+		        	a[x] != '<'  &&
+		        	a[x] != '}'  &&
+		        	a[x] != '~'  &&
+		        	a[x] != '`'  &&
+		        	a[x] != '['  &&
+		        	a[x] != ']'  &&
+ 		            a[x] != '\n' &&
+		            a[x] != '\t' &&
+		      		a[x] != -1    )
+		    {
+
+		    	direct_word[q] = a[x];
+		    	x++;
+		    	q++;
+		  	}
+				command_t  zc = (command_t)malloc(sizeof(struct command));
+				zc = com_pop(com_stack);
+				temp_com = zc;
+				char* temp_word = (char*)malloc(sizeof(char));
+				int Iter1 = 0;
+
+		while(direct_word[Iter1] != '\0')
+		  {
+		    temp_word[Iter1] = direct_word[Iter1];
+		    direct_word[Iter1] = '\0';
+		    Iter1++;
+		  }
+
+
+
+			temp_com->output = (char*)malloc(sizeof(char)*100);
+			temp_com->output = temp_word;
+			temp_com->input = temp_word; 
+			com_push(com_stack, temp_com);
+
+			temp_word = NULL;
+			q = 0;
+	    	
+	    }
+
+	    if(a[x] == 'c') //change later
+	    {
+	    	overwrite = false;
+	    	x++;  
+	    }
+
+	    if(a[x] == ']')
+	    {
+	    	x++;
+			char* direct_word=(char*)malloc(sizeof(char)*100);
+			while(a[x] == ' ')
+		  	{
+		    	x++;
+		  	}
+
+			while(  a[x] != '&'  &&
+		        	a[x] != '|'  &&
+		        	a[x] != '{'  &&
+		        	a[x] != ';'  &&
+		        	a[x] != ' '  &&
+		        	a[x] != ')'  &&
+		        	a[x] != '('  &&
+		        	a[x] != '<'  &&
+		        	a[x] != '}'  &&
+		        	a[x] != '~'  &&
+		        	a[x] != '`'  &&
+		        	a[x] != '['  &&
+		        	a[x] != ']'  &&
+ 		            a[x] != '\n' &&
+		            a[x] != '\t' &&
+		      		a[x] != -1    )
+		    {
+
+		    	direct_word[q] = a[x];
+		    	x++;
+		    	q++;
+		  	}
+				command_t  zd = (command_t)malloc(sizeof(struct command));
+				zd = com_pop(com_stack);
+				temp_com = zd;
+				char* temp_word = (char*)malloc(sizeof(char));
+				int Iter1 = 0;
+
+		while(direct_word[Iter1] != '\0')
+		  {
+		    temp_word[Iter1] = direct_word[Iter1];
+		    direct_word[Iter1] = '\0';
+		    Iter1++;
+		  }
+
+
+
+			temp_com->output = (char*)malloc(sizeof(char)*100);
+			temp_com->output = temp_word;
+			temp_com -> force_overwrite = true; 
+			com_push(com_stack, temp_com);
+
+			temp_word = NULL;
+			q = 0;
+
+	    }
+
+
 
 	    if(a[x] == '\n' || a[x] == -1)
 	      {
