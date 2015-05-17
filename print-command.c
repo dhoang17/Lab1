@@ -44,10 +44,21 @@ command_indented_print (int indent, command_t c)
       abort ();
     }
 
-  if (c->input)
+  if (c->input && !c->output && !c->print_this)
     printf ("<%s", c->input);
-  if (c->output)
+  if (c->output && !c->input && !c->print_this && !c->force_overwrite)
     printf (">%s", c->output);
+  if(c->append)
+    printf (">>%s", c->append);
+  if(c->input && c->output)
+    printf ("<>%s", c->output);
+  if(c->input && c->print_this)
+    printf ("<&%s", c->input);
+  if(c->output && c->print_this)
+    printf (">&%s", c->output);
+  if(c->output && c->force_overwrite)
+    printf (">|%s", c->output);
+
 }
 
 void

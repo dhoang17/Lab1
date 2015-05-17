@@ -31,6 +31,7 @@ struct command
   char *output;
   char *append; 
 
+  int print_this; 
   int duplicate_input;
   int duplicate_output; 
 

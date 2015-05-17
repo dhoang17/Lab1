@@ -805,12 +805,12 @@ make_command_stream (int (*get_next_byte) (void *),
 
 		if (redirect)
 		  {
-		    if (a[size-1] = '>')
+		    if (a[size-1] == '>')
 		      {
 			a[size-1] = '}';
 		      }
 
-		    if(a[size-1] = '<')
+		    if(a[size-1] == '<')
 		      {
 			a[size-1] = '[';
 		      }
@@ -1289,9 +1289,9 @@ make_command_stream (int (*get_next_byte) (void *),
 	    	int target_fd; 
 	    	command_t za = (command_t)malloc(sizeof(struct command)); 
 	    	za = com_pop(com_stack); 
-	    	if(isdigit(za->u.word[0]))
+	    	if(isdigit(a[x-1]))
 	    	{
-	    		target_fd = za->u.word[0];
+	    		target_fd = a[x-1];
 	    		za = com_pop(com_stack);  
 	    	}
 	    	else
@@ -1341,7 +1341,8 @@ make_command_stream (int (*get_next_byte) (void *),
 
 			za->input = (char*)malloc(sizeof(char)*100);
 			za->input = temp_word;
-			za->duplicate_input = target_fd; 
+			za->duplicate_input = target_fd;
+			za->print_this = true;  
 			com_push(com_stack, za);
 
 			temp_word = NULL;
@@ -1353,9 +1354,9 @@ make_command_stream (int (*get_next_byte) (void *),
 	    	int target_fd; 
 	    	command_t zb = (command_t)malloc(sizeof(struct command)); 
 	    	zb = com_pop(com_stack); 
-	    	if(isdigit(zb->u.word[0]))
+	    	if(isdigit(a[x-1]))
 	    	{
-	    		target_fd = zb->u.word[0];
+	    		target_fd = a[x-1];
 	    		zb = com_pop(com_stack);  
 	    	}
 	    	else
@@ -1405,7 +1406,8 @@ make_command_stream (int (*get_next_byte) (void *),
 
 			zb->output = (char*)malloc(sizeof(char)*100);
 			zb->output = temp_word;
-			zb->duplicate_output = target_fd; 
+			zb->duplicate_output = target_fd;
+			zb->print_this = true;  
 			com_push(com_stack, zb);
 
 			temp_word = NULL;
@@ -1460,18 +1462,13 @@ make_command_stream (int (*get_next_byte) (void *),
 
 			temp_com->output = (char*)malloc(sizeof(char)*100);
 			temp_com->output = temp_word;
+			temp_com->input = (char*)malloc(sizeof(char)*100); 
 			temp_com->input = temp_word; 
 			com_push(com_stack, temp_com);
 
 			temp_word = NULL;
 			q = 0;
 	    	
-	    }
-
-	    if(a[x] == 'c') //change later
-	    {
-	    	overwrite = false;
-	    	x++;  
 	    }
 
 	    if(a[x] == ']')
